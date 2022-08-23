@@ -1,0 +1,16 @@
+version: "3.9"
+
+volumes:
+  discord-habitica-store:
+    name: ${VOLUME_ID}
+
+services:
+  web:
+    build: .
+    image: ouoertheo/discord-habitica
+    ports:
+      - "8952:8952"
+    volumes:
+      - type: volume
+        source: discord-habitica-store
+        target: ${PROJECT_DIR}/${VOLUME_ID}
