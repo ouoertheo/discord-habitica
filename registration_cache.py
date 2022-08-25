@@ -3,7 +3,9 @@ import json
 import os
 import dotenv
 
-VOLUME_ID = dotenv.dotenv_values()["VOLUME_ID"]
+dotenv.load_dotenv()
+
+VOLUME_ID = os.getenv("VOLUME_ID")
 REGISTRATION_CACHE = f"./{VOLUME_ID}/registration_cache.json"
 
 class RegistrationCache:

@@ -13,4 +13,4 @@ services:
     volumes:
       - type: volume
         source: discord-habitica-store
-        target: ${PROJECT_DIR}/${VOLUME_ID}
+        target: ${PROJECT_DIR}/${STORE_DIR}

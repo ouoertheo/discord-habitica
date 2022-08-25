@@ -7,6 +7,8 @@ import os
 import sys
 from typing import Any
 import discord
+from discord.ext import commands
+from discord.ui import View, Button, TextInput, Select, Modal
 import dotenv
 import aiohttp
 from  quart import Quart, request
@@ -20,17 +22,37 @@ with open("logging.json","r") as log_config:
 logger = logging.getLogger(__name__)
 app = Quart(__name__)
 
-DISCORD_TOKEN = dotenv.dotenv_values()["DISCORD_TOKEN"]
-HABITICA_BASE_URL = dotenv.dotenv_values()["HABITICA_BASE_URL"]
-EXTERNAL_SERVER_HOST = dotenv.dotenv_values()["EXTERNAL_SERVER_HOST"]
-INTERNAL_SERVER_HOST = dotenv.dotenv_values()["INTERNAL_SERVER_HOST"]
-SERVER_PORT = dotenv.dotenv_values()["SERVER_PORT"]
+ENV_PROD = False
+try:
+    logger.info("Using .env.local configs")
+    dotenv.load_dotenv(".env.local")
+except Exception:
+    dotenv.load_dotenv(".env")
 
-HABITICA_API_USER = dotenv.dotenv_values()["PROXY_HABITICA_USER_ID"]
-HABITICA_API_TOKEN = dotenv.dotenv_values()["PROXY_HABITICA_API_TOKEN"]
-# HABITICA_API_USER = dotenv.dotenv_values()["TEST_PROXY_HABITICA_USER_ID"]
-# HABITICA_API_TOKEN = dotenv.dotenv_values()["TEST_PROXY_HABITICA_API_TOKEN"]
+HABITICA_BASE_URL = os.getenv("HABITICA_BASE_URL")
+INTERNAL_SERVER_HOST = os.getenv("INTERNAL_SERVER_HOST")
 
+if ENV_PROD:
+    DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+    HABITICA_API_USER = os.getenv("PROXY_HABITICA_USER_ID")
+    HABITICA_API_TOKEN = os.getenv("PROXY_HABITICA_API_TOKEN")
+    EXTERNAL_SERVER_HOST = os.getenv("EXTERNAL_SERVER_HOST")
+    SERVER_PORT = os.getenv("SERVER_PORT")
+else:
+    DISCORD_TOKEN = os.getenv("TEST_DISCORD_TOKEN")
+    HABITICA_API_USER = os.getenv("TEST_PROXY_HABITICA_USER_ID")
+    HABITICA_API_TOKEN = os.getenv("TEST_PROXY_HABITICA_API_TOKEN")
+    EXTERNAL_SERVER_HOST = os.getenv("TEST_EXTERNAL_SERVER_HOST")
+    SERVER_PORT = os.getenv("TEST_SERVER_PORT")
+
+from discord import ui
+
+class Questionnaire(ui.Modal, title='Questionnaire Response'):
+    name = ui.TextInput(label='Name')
+    answer = ui.TextInput(label='Answer', style=discord.TextStyle.paragraph)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.send_message(f'Thanks for your response, {self.name}!', ephemeral=True)
 
 
 class HabiticaUser:
@@ -72,14 +94,15 @@ class HabiticaUser:
                         "type":webhook_response["type"]
                     }
                     url = webhook["url"]
-                    if webhook["url"] != self.server_url:
+                    if webhook["url"] == self.server_url:
+                        if webhook["type"] == "groupChatReceived":
+                            self.webhooks["groupChatReceived"] = True
+                        if webhook["type"] == "questActivity":
+                            self.webhooks["questActivity"] = True
+                        if webhook["type"] == "taskActivity":
+                            self.webhooks["taskActivity"] = True
+                    else:
                         logger.error(f"Error: Expected {self.server_url} got {url}")
-                    if webhook["type"] == "groupChatReceived":
-                        self.webhooks["groupChatReceived"] = True
-                    if webhook["type"] == "questActivity":
-                        self.webhooks["questActivity"] = True
-                    if webhook["type"] == "taskActivity":
-                        self.webhooks["taskActivity"] = True
                 
                 if not self.webhooks["groupChatReceived"]:
                     logger.info("groupChatReceived webhook not found, creating...")
@@ -127,7 +150,7 @@ class HabiticaUser:
                     raise Exception("Failed to create groupChatReceived webhook")
                 return True
     
-class HabiticaBot(discord.Client):
+class HabiticaBot(commands.Bot):
     def __init__(self, **options: Any) -> None:
 
         self.habitica_user: HabiticaUser = None
@@ -135,7 +158,7 @@ class HabiticaBot(discord.Client):
         self.cache = RegistrationCache()
         intents = discord.Intents.default()
         intents.message_content = True
-        super().__init__(intents=intents, **options)
+        super().__init__(".", intents=intents, **options)
 
     async def on_ready(self):
         logger.info("Discord client ready. Intializing Habitica connection...")
@@ -148,10 +171,15 @@ class HabiticaBot(discord.Client):
     async def on_message(self, message: discord.Message):
         if message.author == self.user:
             return
+        await self.process_commands(message)
         if message.content.startswith(".register"):
             async with message.channel.typing():
                 registration_result = self.register_channel_command(message.clean_content, message.channel.id)
                 await message.channel.send(registration_result)
+        # if message.content == ".test":
+        #     await message.channel.send("Hello World", components=[
+        #         Button(style=discord.ButtonStyle.primary, label="Press me", custom_id="my_custom_id")
+        #     ])
     
     def register_channel_command(self, message: str, channel_id: str):
         try:
@@ -203,6 +231,13 @@ class HabiticaBot(discord.Client):
         self.channel = self.get_channel(channel_id)
         group_id = self.habitica_user.group_id
 
+    async def on_interaction(self, interaction: discord.Interaction):
+        pass
+
+    async def setup_hook(self) -> None:
+        # Sync the application command with Discord.
+        await self.tree.sync()
+
 
 bot = HabiticaBot()
 
@@ -222,6 +257,10 @@ async def main():
         bot.start(DISCORD_TOKEN),
         app.run_task(host=INTERNAL_SERVER_HOST,port=SERVER_PORT)
     )
+
+@bot.tree.command()
+async def test_app_command(interaction: discord.Interaction):
+    await interaction.response.send_modal(Questionnaire())
 
 if __name__ == "__main__":
     asyncio.run(main())
