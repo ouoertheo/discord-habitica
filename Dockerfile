@@ -13,7 +13,6 @@ COPY Pipfile Pipfile.lock ${PROJECT_DIR}/
 RUN pipenv install --system --deploy
 
 COPY . ${PROJECT_DIR}/
-EXPOSE 8952
 
 CMD [ "python", "discord_habitica.py"]
 # RUN python ./discord_habitica.py

@@ -9,7 +9,7 @@ services:
     build: .
     image: ouoertheo/discord-habitica
     ports:
-      - "8952:8952"
+      - ${EXTERNAL_SERVER_PORT}:${INTERNAL_SERVER_PORT}
     volumes:
       - type: volume
         source: discord-habitica-store

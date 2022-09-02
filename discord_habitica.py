@@ -23,11 +23,19 @@ logger = logging.getLogger(__name__)
 app = Quart(__name__)
 
 ENV_PROD = False
-try:
-    logger.info("Using .env.local configs")
-    dotenv.load_dotenv(".env.local")
-except Exception:
-    dotenv.load_dotenv(".env")
+
+# Last entry is highest precedence
+env_file_precedence = [
+    ".env",
+    ".env.prod",
+    ".env.local"
+]
+last_env = ""
+for env in env_file_precedence:
+    if os.path.exists(env):
+        dotenv.load_dotenv(env)
+        last_env = env
+logger.info(f"Using {env} configs")
 
 HABITICA_BASE_URL = os.getenv("HABITICA_BASE_URL")
 INTERNAL_SERVER_HOST = os.getenv("INTERNAL_SERVER_HOST")
@@ -36,29 +44,36 @@ if ENV_PROD:
     DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
     HABITICA_API_USER = os.getenv("PROXY_HABITICA_USER_ID")
     HABITICA_API_TOKEN = os.getenv("PROXY_HABITICA_API_TOKEN")
-    EXTERNAL_SERVER_HOST = os.getenv("EXTERNAL_SERVER_HOST")
-    SERVER_PORT = os.getenv("SERVER_PORT")
+    
+    EXTERNAL_SERVER_URL = os.getenv("EXTERNAL_SERVER_URL")
+    INTERNAL_SERVER_PORT = os.getenv("INTERNAL_SERVER_PORT")
+    EXTERNAL_SERVER_PORT = os.getenv("EXTERNAL_SERVER_PORT")
 else:
     DISCORD_TOKEN = os.getenv("TEST_DISCORD_TOKEN")
     HABITICA_API_USER = os.getenv("TEST_PROXY_HABITICA_USER_ID")
     HABITICA_API_TOKEN = os.getenv("TEST_PROXY_HABITICA_API_TOKEN")
-    EXTERNAL_SERVER_HOST = os.getenv("TEST_EXTERNAL_SERVER_HOST")
-    SERVER_PORT = os.getenv("TEST_SERVER_PORT")
+
+    EXTERNAL_SERVER_URL = os.getenv("TEST_EXTERNAL_SERVER_URL")
+    INTERNAL_SERVER_PORT = os.getenv("TEST_EXTERNAL_SERVER_PORT")
+    EXTERNAL_SERVER_PORT = os.getenv("TEST_INTERNAL_SERVER_PORT")
 
 from discord import ui
 
-class Questionnaire(ui.Modal, title='Questionnaire Response'):
-    name = ui.TextInput(label='Name')
-    answer = ui.TextInput(label='Answer', style=discord.TextStyle.paragraph)
+class Questionnaire(ui.Modal, title='Habitica User Registration'):
+    api_user = ui.TextInput(label='API User')
+    api_key = ui.TextInput(label='API Key')
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.send_message(f'Thanks for your response, {self.name}!', ephemeral=True)
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        return await super().on_error(interaction, error)()
 
 
 class HabiticaUser:
     def __init__(self, api_user, api_token) -> None:
         self.user = None
-        self.server_url = f"http://{EXTERNAL_SERVER_HOST}:{SERVER_PORT}/habitica"
+        self.local_server_url = f"{EXTERNAL_SERVER_URL}:{EXTERNAL_SERVER_PORT}/habitica"
         self.auth_headers = {
             "x-api-user": api_user,
             "x-api-key": api_token
@@ -94,15 +109,18 @@ class HabiticaUser:
                         "type":webhook_response["type"]
                     }
                     url = webhook["url"]
-                    if webhook["url"] == self.server_url:
+                    if webhook["url"] == self.local_server_url:
                         if webhook["type"] == "groupChatReceived":
                             self.webhooks["groupChatReceived"] = True
+                            logger.info(f"Found webhook groupChatReceived on {self.local_server_url}")
                         if webhook["type"] == "questActivity":
                             self.webhooks["questActivity"] = True
+                            logger.info(f"Found webhook questActivity on {self.local_server_url}")
                         if webhook["type"] == "taskActivity":
                             self.webhooks["taskActivity"] = True
+                            logger.info(f"Found webhook taskActivity on {self.local_server_url}")
                     else:
-                        logger.error(f"Error: Expected {self.server_url} got {url}")
+                        logger.error(f"Error: Expected {self.local_server_url} got {url}")
                 
                 if not self.webhooks["groupChatReceived"]:
                     logger.info("groupChatReceived webhook not found, creating...")
@@ -116,7 +134,7 @@ class HabiticaUser:
     async def create_groupChatReceived_webhook(self, group_id):
         payload = {
             "enabled": True,
-            "url": self.server_url,
+            "url": self.local_server_url,
             "label": "Discord Habitica Chat Webhook",
             "type": "groupChatReceived",
             "options": {
@@ -136,7 +154,7 @@ class HabiticaUser:
     async def create_taskActivity_webhook(self):
         payload = {
             "enabled": True,
-            "url": self.server_url,
+            "url": self.local_server_url,
             "label": "Discord Habitica Task Activity Webhook",
             "type": "taskActivity",
         }
@@ -255,11 +273,15 @@ async def habitica_listener():
 async def main():
     await asyncio.gather(
         bot.start(DISCORD_TOKEN),
-        app.run_task(host=INTERNAL_SERVER_HOST,port=SERVER_PORT)
+        app.run_task(host=INTERNAL_SERVER_HOST,port=INTERNAL_SERVER_PORT)
     )
 
 @bot.tree.command()
-async def test_app_command(interaction: discord.Interaction):
+async def register_party(interaction: discord.Interaction, habitica_guild_id: str):
+    bot.register_channel(interaction.channel_id, habitica_guild_id)
+
+@bot.tree.command()
+async def register_user(interaction: discord.Interaction):
     await interaction.response.send_modal(Questionnaire())
 
 if __name__ == "__main__":
