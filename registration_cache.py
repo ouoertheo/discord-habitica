@@ -5,8 +5,8 @@ import dotenv
 
 dotenv.load_dotenv()
 
-VOLUME_ID = os.getenv("VOLUME_ID")
-REGISTRATION_CACHE = f"./{VOLUME_ID}/registration_cache.json"
+STORE_DIR = os.getenv("STORE_DIR")
+REGISTRATION_CACHE = f"./{STORE_DIR}/registration_cache.json"
 
 class RegistrationCache:
     cache = {}

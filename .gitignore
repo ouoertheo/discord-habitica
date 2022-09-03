@@ -1,5 +1,4 @@
-.env.local
-.env.prod
+.env
 
 __pycache__
 .vscode

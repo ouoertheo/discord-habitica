@@ -1,16 +1,7 @@
-version: "3.9"
-
-volumes:
-  discord-habitica-store:
-    name: ${VOLUME_ID}
-
 services:
-  web:
-    build: .
+  app:
     image: ouoertheo/discord-habitica
     ports:
-      - ${EXTERNAL_SERVER_PORT}:${INTERNAL_SERVER_PORT}
+      - ${SERVER_PORT}:${SERVER_PORT}
     volumes:
-      - type: volume
-        source: discord-habitica-store
-        target: ${PROJECT_DIR}/${STORE_DIR}
+      - ${VOLUME_MOUNT}:${PROJECT_DIR}/${STORE_DIR}

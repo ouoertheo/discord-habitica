@@ -8,11 +8,10 @@ import sys
 from typing import Any
 import discord
 from discord.ext import commands
-from discord.ui import View, Button, TextInput, Select, Modal
+from discord import ui
 import dotenv
 import aiohttp
-from  quart import Quart, request
-
+from quart import Quart, request
 from registration_cache import RegistrationCache
 
 # Define logger name
@@ -22,42 +21,27 @@ with open("logging.json","r") as log_config:
 logger = logging.getLogger(__name__)
 app = Quart(__name__)
 
-ENV_PROD = False
-
-# Last entry is highest precedence
-env_file_precedence = [
-    ".env",
-    ".env.prod",
-    ".env.local"
-]
-last_env = ""
-for env in env_file_precedence:
-    if os.path.exists(env):
-        dotenv.load_dotenv(env)
-        last_env = env
-logger.info(f"Using {env} configs")
-
+dotenv.load_dotenv(".env")
+ENVIRONMENT = os.getenv("ENVIRONMENT")
 HABITICA_BASE_URL = os.getenv("HABITICA_BASE_URL")
-INTERNAL_SERVER_HOST = os.getenv("INTERNAL_SERVER_HOST")
+SERVER_PORT = os.getenv("SERVER_PORT")
 
-if ENV_PROD:
+if ENVIRONMENT == "PROD":
+    logger.info("Using prod configs")
     DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
     HABITICA_API_USER = os.getenv("PROXY_HABITICA_USER_ID")
     HABITICA_API_TOKEN = os.getenv("PROXY_HABITICA_API_TOKEN")
-    
     EXTERNAL_SERVER_URL = os.getenv("EXTERNAL_SERVER_URL")
-    INTERNAL_SERVER_PORT = os.getenv("INTERNAL_SERVER_PORT")
     EXTERNAL_SERVER_PORT = os.getenv("EXTERNAL_SERVER_PORT")
-else:
+elif ENVIRONMENT == "DEV":
+    logger.info("Using dev configs")
     DISCORD_TOKEN = os.getenv("TEST_DISCORD_TOKEN")
     HABITICA_API_USER = os.getenv("TEST_PROXY_HABITICA_USER_ID")
     HABITICA_API_TOKEN = os.getenv("TEST_PROXY_HABITICA_API_TOKEN")
-
-    EXTERNAL_SERVER_URL = os.getenv("TEST_EXTERNAL_SERVER_URL")
-    INTERNAL_SERVER_PORT = os.getenv("TEST_EXTERNAL_SERVER_PORT")
-    EXTERNAL_SERVER_PORT = os.getenv("TEST_INTERNAL_SERVER_PORT")
-
-from discord import ui
+    EXTERNAL_SERVER_URL = os.getenv("DEV_EXTERNAL_SERVER_URL")
+    EXTERNAL_SERVER_PORT = os.getenv("DEV_EXTERNAL_SERVER_PORT")
+else:
+    logger.critical(f"Value: {ENVIRONMENT} for ENVIRONMENT env specified. Must be DEV or PROD")
 
 class Questionnaire(ui.Modal, title='Habitica User Registration'):
     api_user = ui.TextInput(label='API User')
@@ -120,14 +104,14 @@ class HabiticaUser:
                             self.webhooks["taskActivity"] = True
                             logger.info(f"Found webhook taskActivity on {self.local_server_url}")
                     else:
-                        logger.error(f"Error: Expected {self.local_server_url} got {url}")
+                        logger.warn(f"Looking for {self.local_server_url} found {url}")
                 
                 if not self.webhooks["groupChatReceived"]:
-                    logger.info("groupChatReceived webhook not found, creating...")
+                    logger.info(f"groupChatReceived webhook not found, creating on {self.local_server_url}")
                     await self.create_groupChatReceived_webhook(self.group_id)
                 
                 if not self.webhooks["taskActivity"]:
-                    logger.info("taskActivity webhook not found, creating...")
+                    logger.info(f"taskActivity webhook not found, creating on {self.local_server_url}")
                     await self.create_taskActivity_webhook()
                 return self.webhooks
 
@@ -273,7 +257,7 @@ async def habitica_listener():
 async def main():
     await asyncio.gather(
         bot.start(DISCORD_TOKEN),
-        app.run_task(host=INTERNAL_SERVER_HOST,port=INTERNAL_SERVER_PORT)
+        app.run_task(host="0.0.0.0",port=SERVER_PORT)
     )
 
 @bot.tree.command()
