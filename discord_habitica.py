@@ -1,18 +1,17 @@
-
 import asyncio
 import json
 import logging
 import logging.config
-import os
 import sys
 from typing import Any
 import discord
+from discord.app_commands import command
 from discord.ext import commands
 from discord import ui
-import dotenv
 import aiohttp
 from quart import Quart, request
 from registration_cache import RegistrationCache
+import config as cfg
 
 # Define logger name
 with open("logging.json","r") as log_config:
@@ -21,27 +20,6 @@ with open("logging.json","r") as log_config:
 logger = logging.getLogger(__name__)
 app = Quart(__name__)
 
-dotenv.load_dotenv(".env")
-ENVIRONMENT = os.getenv("ENVIRONMENT")
-HABITICA_BASE_URL = os.getenv("HABITICA_BASE_URL")
-SERVER_PORT = os.getenv("SERVER_PORT")
-
-if ENVIRONMENT == "PROD":
-    logger.info("Using prod configs")
-    DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-    HABITICA_API_USER = os.getenv("PROXY_HABITICA_USER_ID")
-    HABITICA_API_TOKEN = os.getenv("PROXY_HABITICA_API_TOKEN")
-    EXTERNAL_SERVER_URL = os.getenv("EXTERNAL_SERVER_URL")
-    EXTERNAL_SERVER_PORT = os.getenv("EXTERNAL_SERVER_PORT")
-elif ENVIRONMENT == "DEV":
-    logger.info("Using dev configs")
-    DISCORD_TOKEN = os.getenv("TEST_DISCORD_TOKEN")
-    HABITICA_API_USER = os.getenv("TEST_PROXY_HABITICA_USER_ID")
-    HABITICA_API_TOKEN = os.getenv("TEST_PROXY_HABITICA_API_TOKEN")
-    EXTERNAL_SERVER_URL = os.getenv("DEV_EXTERNAL_SERVER_URL")
-    EXTERNAL_SERVER_PORT = os.getenv("DEV_EXTERNAL_SERVER_PORT")
-else:
-    logger.critical(f"Value: {ENVIRONMENT} for ENVIRONMENT env specified. Must be DEV or PROD")
 
 class Questionnaire(ui.Modal, title='Habitica User Registration'):
     api_user = ui.TextInput(label='API User')
@@ -57,7 +35,7 @@ class Questionnaire(ui.Modal, title='Habitica User Registration'):
 class HabiticaUser:
     def __init__(self, api_user, api_token) -> None:
         self.user = None
-        self.local_server_url = f"{EXTERNAL_SERVER_URL}:{EXTERNAL_SERVER_PORT}/habitica"
+        self.local_server_url = f"{cfg.EXTERNAL_SERVER_URL}:{cfg.EXTERNAL_SERVER_PORT}/habitica"
         self.auth_headers = {
             "x-api-user": api_user,
             "x-api-key": api_token
@@ -65,13 +43,13 @@ class HabiticaUser:
 
     async def set_user_details(self):
         async with aiohttp.ClientSession() as session:
-            async with session.get(HABITICA_BASE_URL+"/user",headers=self.auth_headers) as response:
+            async with session.get(cfg.HABITICA_BASE_URL+"/user",headers=self.auth_headers) as response:
                 response_json = json.loads(await response.text())
                 self.user_name = response_json["data"]["profile"]["name"]
                 self.user_id = response_json["data"]["id"]
                 self.group_id = response_json["data"]["party"]["_id"] 
                 self.quest = response_json["data"]["party"]["quest"]
-            async with session.get(HABITICA_BASE_URL+"/groups/party",headers=self.auth_headers) as response:
+            async with session.get(cfg.HABITICA_BASE_URL+"/groups/party",headers=self.auth_headers) as response:
                 response_json = json.loads(await response.text())
                 self.group_name = response_json["data"]["name"]
 
@@ -84,7 +62,7 @@ class HabiticaUser:
             "taskActivity": False
         }
         async with aiohttp.ClientSession() as session:
-            async with session.get(HABITICA_BASE_URL+"/user/webhook",headers=self.auth_headers) as response:
+            async with session.get(cfg.HABITICA_BASE_URL+"/user/webhook",headers=self.auth_headers) as response:
                 response_json = json.loads(await response.text())
                 for webhook_response in response_json["data"]:
                     webhook = {
@@ -127,7 +105,7 @@ class HabiticaUser:
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                HABITICA_BASE_URL+"/user/webhook",
+                cfg.HABITICA_BASE_URL+"/user/webhook",
                 headers=self.auth_headers,
                 json=payload
             ) as response:
@@ -144,7 +122,7 @@ class HabiticaUser:
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                HABITICA_BASE_URL+"/user/webhook",
+                cfg.HABITICA_BASE_URL+"/user/webhook",
                 headers=self.auth_headers,
                 json=payload
             ) as response:
@@ -154,7 +132,7 @@ class HabiticaUser:
     
 class HabiticaBot(commands.Bot):
     def __init__(self, **options: Any) -> None:
-
+        self.my_bot = self
         self.habitica_user: HabiticaUser = None
         self.channel = None
         self.cache = RegistrationCache()
@@ -164,7 +142,7 @@ class HabiticaBot(commands.Bot):
 
     async def on_ready(self):
         logger.info("Discord client ready. Intializing Habitica connection...")
-        self.habitica_user = HabiticaUser(HABITICA_API_USER, HABITICA_API_TOKEN)
+        self.habitica_user = HabiticaUser(cfg.HABITICA_API_USER, cfg.HABITICA_API_TOKEN)
         await self.habitica_user.set_user_details()
         await self.habitica_user.verify_webhooks()
         logger.info(f"Bot connected to Habitica using user: {self.habitica_user.user_name}")
@@ -203,7 +181,7 @@ class HabiticaBot(commands.Bot):
         raise Exception(sys.exc_info())
 
     
-    async def handle_groupChatReceived(self, payload):
+    async def handle_webhook(self, payload):
         try:
             if payload["chat"]["uuid"] == "system":
                 user_name = "System"
@@ -238,8 +216,14 @@ class HabiticaBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         # Sync the application command with Discord.
+        self.tree.add_command(self.test_command)
         await self.tree.sync()
 
+
+    @command()
+    async def test_command(self, interaction: discord.Interaction, potato:str, bacon:str):
+        print(f"{potato} {bacon}")
+        await interaction.response.send_message("Ok!")
 
 bot = HabiticaBot()
 
@@ -247,17 +231,17 @@ bot = HabiticaBot()
 async def habitica_listener():
     webhook_json = json.loads(await request.data)
     if "webhookType" in webhook_json:
-        if webhook_json["webhookType"] == "groupChatReceived":
+        if webhook_json["webhookType"] == "groupChatReceived": # TODO: Generalize this better
             logger.debug(webhook_json)
-            await bot.handle_groupChatReceived(webhook_json)
+            await bot.handle_webhook(webhook_json)
     else:
         logger.error("Malformed webhook invocation")
     return ""
 
 async def main():
     await asyncio.gather(
-        bot.start(DISCORD_TOKEN),
-        app.run_task(host="0.0.0.0",port=SERVER_PORT)
+        bot.start(cfg.DISCORD_TOKEN),
+        app.run_task(host="0.0.0.0",port=cfg.SERVER_PORT)
     )
 
 @bot.tree.command()

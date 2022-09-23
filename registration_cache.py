@@ -2,20 +2,23 @@
 import json
 import os
 import dotenv
+import config as cfg
 
 dotenv.load_dotenv()
 
 STORE_DIR = os.getenv("STORE_DIR")
 REGISTRATION_CACHE = f"./{STORE_DIR}/registration_cache.json"
 
+
+
 class RegistrationCache:
     cache = {}
     def __init__(self) -> None:
-        self.verify_file()
+        self.verify_files()
         self.read_cache()
 
-    def verify_file(self):
-        # Make sure the REGISTERED_CHANNELS cache file exists
+    def verify_files(self):
+        "Make sure the cache files exists"
         if not os.path.exists(REGISTRATION_CACHE):
             with open(REGISTRATION_CACHE, 'x') as fh:
                 json.dump({}, fh)
