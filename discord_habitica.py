@@ -43,13 +43,13 @@ class HabiticaUser:
 
     async def set_user_details(self):
         async with aiohttp.ClientSession() as session:
-            async with session.get(cfg.HABITICA_BASE_URL+"/user",headers=self.auth_headers) as response:
+            async with session.get(cfg.HABITICA_API_BASE_URL+"/user",headers=self.auth_headers) as response:
                 response_json = json.loads(await response.text())
                 self.user_name = response_json["data"]["profile"]["name"]
                 self.user_id = response_json["data"]["id"]
                 self.group_id = response_json["data"]["party"]["_id"] 
                 self.quest = response_json["data"]["party"]["quest"]
-            async with session.get(cfg.HABITICA_BASE_URL+"/groups/party",headers=self.auth_headers) as response:
+            async with session.get(cfg.HABITICA_API_BASE_URL+"/groups/party",headers=self.auth_headers) as response:
                 response_json = json.loads(await response.text())
                 self.group_name = response_json["data"]["name"]
 
@@ -62,7 +62,7 @@ class HabiticaUser:
             "taskActivity": False
         }
         async with aiohttp.ClientSession() as session:
-            async with session.get(cfg.HABITICA_BASE_URL+"/user/webhook",headers=self.auth_headers) as response:
+            async with session.get(cfg.HABITICA_API_BASE_URL+"/user/webhook",headers=self.auth_headers) as response:
                 response_json = json.loads(await response.text())
                 for webhook_response in response_json["data"]:
                     webhook = {
@@ -105,7 +105,7 @@ class HabiticaUser:
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                cfg.HABITICA_BASE_URL+"/user/webhook",
+                cfg.HABITICA_API_BASE_URL+"/user/webhook",
                 headers=self.auth_headers,
                 json=payload
             ) as response:
@@ -122,7 +122,7 @@ class HabiticaUser:
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                cfg.HABITICA_BASE_URL+"/user/webhook",
+                cfg.HABITICA_API_BASE_URL+"/user/webhook",
                 headers=self.auth_headers,
                 json=payload
             ) as response:
