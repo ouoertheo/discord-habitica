@@ -9,12 +9,13 @@ logger = logging.getLogger(__name__)
 
 class HabiticaUser:
     "Used mainly as a chat integration"
-    def __init__(self, api_user, api_token, discord_user_id="") -> None:
+    def __init__(self, api_user, api_token, discord_user_id) -> None:
         self.api_user = api_user
         self.api_token = api_token
         self.discord_user_id = discord_user_id
         self.webhooks: list[WebHook] = []
         self.synced = False
+        self.driver = cfg.DRIVER
     
     async def fetch_user_details(self):
         user_json, party_json = await asyncio.gather(
@@ -48,7 +49,7 @@ class HabiticaUser:
                 logger.debug(f"Found webhook {webhook_type} on {url}. Webhook does not match {cfg.LOCAL_SERVER_URL}")
                 continue
 
-            self.webhooks.append(WebHook(webhook_type, self.user_id, webhook_id=webhook_id))
+            self.webhooks.append(WebHook(webhook_type, self.api_user, webhook_id=webhook_id))
             logger.info(f"Adding webhook {webhook_type} on {url}.")
     
     def get_webhook(self, webhook_type=""):
@@ -60,12 +61,17 @@ class HabiticaUser:
     
     async def create_webhook(self, webhook: WebHook):
         webhook = await api.create_webhook(self.api_user, self.api_token, webhook.payload)
-        return WebHook(webhook['data']['type'], self.user_id,)
+        return WebHook(webhook['data']['type'])
     
     async def dump(self):
         if not self.synced:
-            logger.info(f"Synchronizing user {self.user_name}")
+            logger.info(f"Synchronizing user {self.api_user}")
             await self.fetch_user_details()
-        cfg.DRIVER.create_user(self.user_id, self.user_name, self.api_user, self.api_token, self.group_id)
+        self.driver.create_user(
+            self.api_user, 
+            self.api_token, 
+            self.group_id, 
+            self.discord_user_id
+        )
 
 

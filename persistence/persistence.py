@@ -4,19 +4,11 @@ class PersistenceDriverBase(metaclass=abc.ABCMeta):
         pass
     
     @abc.abstractmethod
-    def create_user(self, id, name, api_user, api_token, group_id=""):
+    def create_user(self, api_user, api_token, group_id, discord_id):
         pass
 
     @abc.abstractmethod
-    def get_user_by_id(self, id):
-        pass
-
-    @abc.abstractmethod
-    def get_user_by_api(self, api_user):
-        pass
-
-    @abc.abstractmethod
-    def get_user_by_name(self, name):
+    def get_user(self, api_user):
         pass
 
     @abc.abstractmethod
@@ -24,23 +16,15 @@ class PersistenceDriverBase(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
+    def get_all_users(self):
+        pass
+
+    @abc.abstractmethod
     def update_user_group(self, id, group_id):
         pass
     
     @abc.abstractmethod
-    def create_integration_user(self, api_user, api_token, group_id):
-        pass
-
-    @abc.abstractmethod
-    def get_integration_user(self, api_user):
-        pass
-
-    @abc.abstractmethod
-    def update_integration_user_group(self, api_user, group_id):
-        pass  
-    
-    @abc.abstractmethod
-    def create_group(self, group_id, channel_id="", integration_user_id=""):
+    def create_group(self, group_id, api_user, api_token, discord_channel_id, api_users=[]):
         pass
 
     @abc.abstractmethod
@@ -48,18 +32,21 @@ class PersistenceDriverBase(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def update_group(self, group_id, channel_id="", integration_user_id=""):
+    def get_all_groups(self):
+        pass
+    
+    @abc.abstractmethod
+    def update_group_api_creds(self,group_id, api_user, api_token):
         pass
 
     @abc.abstractmethod
-    def create_webhook(self, user_id, id, type, options):
+    def add_group_api_user(self, group_id, api_user):
         pass
 
     @abc.abstractmethod
-    def get_webhooks_by_user(self, user_id):
+    def remove_group_api_user(self, group_id, api_user):
         pass
 
     @abc.abstractmethod
-    def get_webhook_by_id(self, id):
+    def update_group_channel(self, group_id, discord_channel_id):
         pass
-

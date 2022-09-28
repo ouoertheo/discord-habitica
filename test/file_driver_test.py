@@ -22,98 +22,58 @@ class FileDriverTest(unittest.TestCase):
 
     def test_create_user(self):
         fd = TEST_IMPLEMENTATION("test_store")
-        fd.create_user("test_id","test_name","test_api_user","test_api_token","test_group_id")
+        fd.create_user("api_user","api_token","group_id","discord_user_id")
+        
         with open(fd.file_stores["user"], 'r') as user_store:
             users = json.load(user_store)
-        user = users["test_id"]
-        self.assertEquals(user["id"], "test_id")
+        user = users["api_user"]
+        self.assertEquals(user["api_user"], "api_user")
 
-    def test_get_user_by_id(self):
+    def test_get_user(self):
         fd = TEST_IMPLEMENTATION("test_store")
-        fd.create_user("test_id","test_name","test_api_user","test_api_token","test_group_id")
-        user = fd.get_user_by_id("test_id")
-        self.assertEquals(user["id"], "test_id")
-    
-    def test_get_user_by_api(self):
+        fd.create_user("api_user","api_token","group_id","discord_user_id")
+        user = fd.get_user("api_user")
+        self.assertEquals(user["api_user"], "api_user")
+
+    def test_get_all_users(self):
         fd = TEST_IMPLEMENTATION("test_store")
-        fd.create_user("test_id","test_name","test_api_user","test_api_token","test_group_id")
-        user = fd.get_user_by_api("test_api_user")
-        self.assertEquals(user["id"], "test_id")
-    
-    def test_get_user_by_name(self):
-        fd = TEST_IMPLEMENTATION("test_store")
-        fd.create_user("test_id","test_name","test_api_user","test_api_token","test_group_id")
-        user = fd.get_user_by_name("test_name")
-        self.assertEquals(user["id"], "test_id")
+        fd.create_user("api_user","api_token","group_id","discord_user_id")
+        fd.create_user("api_user2","api_token2","group_id2","discord_user_id2")
+        users = fd.get_all_users()
+        self.assertIn("api_user",users)
+        self.assertIn("api_user2",users)
     
     def test_update_user_group(self):
         fd = TEST_IMPLEMENTATION("test_store")
-        fd.create_user("test_id","test_name","test_api_user","test_api_token","test_group_id")
-        user = fd.get_user_by_name("test_name")
-        user = fd.update_user_group(user["id"],"new_test_group_id")
+        fd.create_user("api_user","api_token","group_id","discord_user_id")
+        user = fd.get_user("api_user")
+        user = fd.update_user_group(user["api_user"],"new_test_group_id")
         self.assertEquals(user["group_id"], "new_test_group_id")
 
-    def test_create_integration_user(self):
-        fd = TEST_IMPLEMENTATION("test_store")
-        fd.create_integration_user("test_api_user","test_api_token","test_group_id")
-        with open(fd.file_stores["integration_user"], 'r') as store:
-            integration_users = json.load(store)
-        integration_user = integration_users["test_api_user"]
-        self.assertEquals(integration_user["api_user"], "test_api_user")
-
-    def test_get_integration_user_by_id(self):
-        fd = TEST_IMPLEMENTATION("test_store")
-        fd.create_integration_user("test_api_user","test_api_token","test_group_id")
-        integration_user = fd.get_integration_user("test_api_user")
-        self.assertEquals(integration_user["api_user"], "test_api_user")
-    
-    def test_update_integration_user_group(self):
-        fd = TEST_IMPLEMENTATION("test_store")
-        fd.create_integration_user("test_api_user","test_api_token","test_group_id")
-        integration_user = fd.get_integration_user("test_api_user")
-        integration_user = fd.update_integration_user_group(integration_user["api_user"],"new_test_group_id")
-        self.assertEquals(integration_user["group_id"], "new_test_group_id")
-    
     def test_create_group(self):
         fd = TEST_IMPLEMENTATION("test_store")
-        group = fd.create_group("test_group_id","test_discord_id","test_integration_user")
+        group = fd.create_group("test_group_id","api_user","api_token","test_discord_id")
         with open(fd.file_stores["group"],'r') as store:
             groups = json.load(store)
         expected = groups["test_group_id"]
-        self.assertEqual(expected["id"], group["id"])
+        self.assertEqual(expected["group_id"], group["group_id"])
     
     def test_get_group(self):
         fd = TEST_IMPLEMENTATION("test_store")
-        group = fd.create_group("test_group_id","test_discord_id","test_integration_user")
+        group = fd.create_group("test_group_id","api_user","api_token","test_discord_id")
         expected = fd.get_group("test_group_id")
-        self.assertEqual(expected["id"], group["id"])
+        self.assertEqual(expected["group_id"], group["group_id"])
 
     def test_update_group(self):
         fd = PersistenceFileDriver("test_store")
-        group = fd.create_group("test_group_id","test_discord_id","test_integration_user")
-        expected = fd.update_group(group["id"],channel_id="new_test_discord_id")
-        self.assertEqual(expected["channel_id"], "new_test_discord_id")
-        expected = fd.update_group(group["id"],integration_user_id="new_test_integration_user")
-        self.assertEqual(expected["integration_user_id"], "new_test_integration_user")
-
-    def test_create_webhook(self):
-        fd = PersistenceFileDriver("test_store")
-        webhook = fd.create_webhook("test_user_id","test_webhook_id",WebHook.TASK,WebHook.TASK_OPTIONS)
-        with open(fd.file_stores["webhook"],'r') as store:
-            webhooks = json.load(store)
-        expected = webhooks["test_user_id"]
-        self.assertEqual(expected[WebHook.TASK], webhook[WebHook.TASK])
-
-    def test_get_webhook_by_user(self):
-        fd = PersistenceFileDriver("test_store")
-        webhook = fd.create_webhook("test_user_id","test_webhook_id",WebHook.TASK,WebHook.TASK_OPTIONS)
-        expected = fd.get_webhooks_by_user("test_user_id")
-        self.assertEqual(expected[WebHook.TASK], webhook[WebHook.TASK])
-
-    def test_get_webhook_by_id(self):
-        fd = PersistenceFileDriver("test_store")
-        fd.create_webhook("test_user_id","test_webhook_id",WebHook.TASK,WebHook.TASK_OPTIONS)
-        expected = fd.get_webhook_by_id("test_webhook_id")
-        self.assertEqual(expected['type'], WebHook.TASK)
+        group = fd.create_group("test_group_id","api_user","api_token","test_discord_id")
+        expected = fd.update_group_channel(group["group_id"],"new_test_discord_id")
+        self.assertEqual(expected["discord_channel_id"], "new_test_discord_id")
+        expected = fd.update_group_api_creds(group["group_id"],"api_user_new","api_token_new")
+        self.assertEqual(expected["api_user"], "api_user_new")
+        expected = fd.add_group_api_user(group["group_id"],"test_user")
+        self.assertEqual(expected["api_user"], "api_user_new")
+        expected = fd.remove_group_api_user(group["group_id"], "test_user")
+        self.assertNotIn("test_user",expected["api_users"])
 
 

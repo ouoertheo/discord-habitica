@@ -1,21 +1,7 @@
 import logging
-import dotenv, os
+import config
 
 logger = logging.getLogger(__name__)
-
-dotenv.load_dotenv(".env")
-ENVIRONMENT = os.getenv("ENVIRONMENT")
-
-if ENVIRONMENT == "PROD":
-    logger.info("Using prod configs")
-    EXTERNAL_SERVER_URL = os.getenv("EXTERNAL_SERVER_URL")
-    EXTERNAL_SERVER_PORT = os.getenv("EXTERNAL_SERVER_PORT")
-elif ENVIRONMENT == "DEV":
-    logger.info("Using dev configs")
-    EXTERNAL_SERVER_URL = os.getenv("DEV_EXTERNAL_SERVER_URL")
-    EXTERNAL_SERVER_PORT = os.getenv("DEV_EXTERNAL_SERVER_PORT")
-
-LOCAL_SERVER_URL = f"{EXTERNAL_SERVER_URL}:{EXTERNAL_SERVER_PORT}/habitica"
 
 class WebHook:
     QUEST = "questActivity"
@@ -51,19 +37,19 @@ class WebHook:
     }
     "set at least one to true"
 
-    def __init__(self, webhook_type, user_id, options={}, webhook_id="") -> None:
+    def __init__(self, webhook_type, api_user, options={}, webhook_id="") -> None:
         if webhook_type not in [self.QUEST, self.USER, self.GROUP_CHAT, self.TASK]:
             raise ValueError(f"Invalid webhook_type provided: {webhook_type}")
         self.webhook_type = webhook_type
         self.custom_options = options
         self.id = webhook_id
-        self.user_id = user_id
+        self.api_user = api_user
 
     @property
     def payload(self):
         self._payload = {
             "enabled": True,
-            "url": LOCAL_SERVER_URL
+            "url": config.LOCAL_SERVER_URL
         }
 
         if self.webhook_type == self.QUEST:
