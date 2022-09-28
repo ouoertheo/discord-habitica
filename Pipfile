@@ -9,6 +9,7 @@ python-dotenv = "*"
 quart = "*"
 discord-ui = "*"
 "discord.py" = "*"
+"python.dotenv" = "*"
 
 [dev-packages]
 
