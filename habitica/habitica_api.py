@@ -3,9 +3,8 @@ import json
 import aiohttp
 import logging
 import dotenv, os
+import config
 
-dotenv.load_dotenv(".env")
-HABITICA_BASE_URL = os.getenv("HABITICA_BASE_URL")
 logger = logging.getLogger(__name__)
 
 
@@ -16,7 +15,7 @@ async def get(api_user, api_token, command_path):
     }
 
     async with aiohttp.ClientSession() as session:
-        async with session.get(HABITICA_BASE_URL+command_path, headers=auth_headers) as response:
+        async with session.get(config.HABITICA_API_BASE_URL+command_path, headers=auth_headers) as response:
             response_json = json.loads(await response.text())
             if response.status >= 400:
                 message = f"HabiticaAPI: {command_path} {response.status} {await response.text()}"
@@ -33,7 +32,7 @@ async def post(api_user, api_token, command_path, payload: dict):
 
     async with aiohttp.ClientSession() as session:
         async with session.post(
-            HABITICA_BASE_URL+command_path,
+            config.HABITICA_API_BASE_URL+command_path,
             headers=auth_headers,
             json=payload
         ) as response:
@@ -53,7 +52,7 @@ async def delete(api_user, api_token, command_path, id: dict):
 
     async with aiohttp.ClientSession() as session:
         async with session.delete(
-            f"{HABITICA_BASE_URL}{command_path}/{id}",
+            f"{config.HABITICA_API_BASE_URL}{command_path}/{id}",
             headers=auth_headers,
         ) as response:
             response_json = json.loads(await response.text())
