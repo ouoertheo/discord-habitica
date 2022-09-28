@@ -5,10 +5,10 @@ logger = logging.getLogger(__name__)
 from persistence.file_driver import PersistenceFileDriver
 
 dotenv.load_dotenv(".env")
-ENVIRONMENT = os.getenv("ENVIRONMENT")
-HABITICA_BASE_URL = os.getenv("HABITICA_BASE_URL")
-SERVER_PORT = os.getenv("SERVER_PORT")
-STORE_DIR = os.getenv("STORE_DIR")
+ENVIRONMENT = os.getenv("ENVIRONMENT") 
+HABITICA_API_BASE_URL = os.getenv("HABITICA_BASE_URL") or "https://habitica.com/api/v3"
+SERVER_PORT = os.getenv("SERVER_PORT") or 8952
+STORE_DIR = os.getenv("STORE_DIR") or "store"
 
 DRIVER = PersistenceFileDriver(STORE_DIR)
 
