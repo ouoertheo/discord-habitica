@@ -6,7 +6,7 @@ import config as cfg
 
 dotenv.load_dotenv()
 
-STORE_DIR = os.getenv("STORE_DIR")
+STORE_DIR = cfg.STORE_DIR
 REGISTRATION_CACHE = f"./{STORE_DIR}/registration_cache.json"
 
 

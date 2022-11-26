@@ -4,18 +4,18 @@ from persistence.persistence import PersistenceDriverBase
 
 class PersistenceFileDriver(PersistenceDriverBase):
     def __init__(self, base_dir: str) -> None:
-        if os.path.exists(base_dir):
-            self.base_dir = base_dir
-            self.file_stores = {
-                "user":f"{base_dir}/user.json",
-                "integration_user":f"{base_dir}/integration_user.json",
-                "group": f"{base_dir}/group.json",
-                "webhook": f"{base_dir}/webhook.json"
-            }
-            "store type mapping to file path"
-            self.verify_files()
-        else:
-            raise(FileExistsError(f"{base_dir} does not exist"))
+        if not os.path.exists(base_dir):
+            os.mkdir(base_dir)
+            
+        self.base_dir = base_dir
+        self.file_stores = {
+            "user":f"{base_dir}/user.json",
+            "integration_user":f"{base_dir}/integration_user.json",
+            "group": f"{base_dir}/group.json",
+            "webhook": f"{base_dir}/webhook.json"
+        }
+        "store type mapping to file path"
+        self.verify_files()
     
     def load_store(self, store_type):
         with open(self.file_stores[store_type],"r") as store:

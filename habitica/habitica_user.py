@@ -1,11 +1,10 @@
 
 import asyncio
 import config as cfg
-import logging
 from habitica.habitica_webhook import WebHook
 import habitica.habitica_api as api
 
-logger = logging.getLogger(__name__)
+logger = cfg.logging.getLogger(__name__)
 
 class HabiticaUser:
     "Used mainly as a chat integration"
@@ -16,12 +15,11 @@ class HabiticaUser:
         self.webhooks: list[WebHook] = []
         self.synced = False
         self.driver = cfg.DRIVER
+        asyncio.create_task(self.fetch_user_details())
     
     async def fetch_user_details(self):
-        user_json, party_json = await asyncio.gather(
-            api.get_user(self.api_user, self.api_token),
-            api.get_party(self.api_user, self.api_token)
-        )
+        user_json = await api.get_user(self.api_user, self.api_token)
+        party_json = await api.get_party(self.api_user, self.api_token)
         self.user_name = user_json["data"]["profile"]["name"]
         self.user_id = user_json["data"]["id"]
         self.group_id = user_json["data"]["party"]["_id"] 
@@ -53,6 +51,9 @@ class HabiticaUser:
             logger.info(f"Adding webhook {webhook_type} on {url}.")
     
     def get_webhook(self, webhook_type=""):
+        '''
+        Return the first webhook of webhook type
+        '''
         if webhook_type:
             webhook = [wh for wh in self.webhooks if wh.webhook_type == WebHook.GROUP_CHAT][0]
         if not webhook:

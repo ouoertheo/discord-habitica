@@ -2,7 +2,7 @@ from quart import Quart, request
 import json
 import logging
 from discord_habitica import bot
-from habitica.habitica_service import svc
+from habitica.habitica_service import habitica
 
 logger = logging.getLogger(__name__)
 app = Quart(__name__)
@@ -14,7 +14,7 @@ async def habitica_listener():
     """
     request = json.loads(await request.data)
     user_id = request["data"]["user"]["id"]
-    if user_id in svc.users:
+    if user_id in habitica.users:
 
 
     if "webhookType" in request:

@@ -1,10 +1,11 @@
-from asyncio.log import logger
 from habitica.habitica_group import HabiticaGroup
 from habitica.habitica_user import HabiticaUser
 from habitica.habitica_webhook import WebHook
-import habitica_api as api
+import habitica.habitica_api as api
 import config as cfg
+import asyncio
 
+logger = cfg.logging.getLogger(__name__)
 
 class HabiticaService:
     def __init__(self, driver) -> None:
@@ -12,19 +13,28 @@ class HabiticaService:
         self.users: dict[str, HabiticaUser] = {}
         self.webhooks: dict[str, WebHook] = {}
     
+    def load_repo(self):
+        self.load_groups()
+        self.load_users()
+        for user in self.users.values():
+            if user.group_id in self.groups:
+                self.groups[user.group_id].add_api_user(user.api_user)
+    
     def load_users(self):
         users = cfg.DRIVER.get_all_users()
-        for user in users:
+        for user in users.values():
             api_user = user["api_user"]
             api_token = user["api_token"]
             group_id = user["group_id"]
-            discord_user_id = user["discord_user_id"]
+            discord_user_id = user["discord_id"]
             self.users[api_user] = HabiticaUser(
                 api_user, 
                 api_token,
-                group_id,
                 discord_user_id
             )
+            self.users[api_user].group_id = group_id
+            asyncio.create_task(self.users[api_user].fetch_user_details())
+        logger.info("Loaded users")
     
     def load_groups(self):
         groups = cfg.DRIVER.get_all_groups()
@@ -32,15 +42,14 @@ class HabiticaService:
             group_id = group["group_id"]
             api_user = group["api_user"]
             api_token = group["api_token"]
-            api_users = group["api_users"]
             discord_channel_id = group["discord_channel_id"]
             self.groups[group_id] = HabiticaGroup(
                 group_id,
                 api_user,
                 api_token,
-                api_users,
                 discord_channel_id,
             )
+        logger.info("Loaded groups")
 
     def get_user(self, api_user="", discord_user_id=""):
         user: HabiticaUser = None
@@ -64,8 +73,8 @@ class HabiticaService:
         Return: New user object
         KeyError: User already exists
         """
-        if self.users[api_user]:
-            raise KeyError(f"UserApi_user {api_user} registered")
+        if api_user in self.users:
+            raise KeyError(f"Api_user {self.users[api_user].user_name} already registered.")
 
         user = HabiticaUser(api_user, api_token, discord_user_id)
         try:
@@ -76,7 +85,7 @@ class HabiticaService:
         if user.group_id in self.groups:
             self.groups[user.group_id].add_api_user(user.user_id)
         else:
-            self.register_group(
+            await self.register_group(
                 user.group_id,
                 api_user,
                 api_token,
@@ -84,7 +93,7 @@ class HabiticaService:
             )
 
         self.users[api_user] = user
-        user.dump()
+        await user.dump()
         return user
     
     async def register_group(self, group_id, api_user, api_token, discord_channel_id):
@@ -96,23 +105,8 @@ class HabiticaService:
             api_token,
             discord_channel_id
         )
-        for webhook in group.webhooks:
-            try:
-                await self.sync_webhook(api_user, api_token, webhook)
-            except KeyError:
-                continue
         self.groups[group_id] = group
         group.dump()
 
-    async def sync_webhook(self, api_user, api_token, webhook: WebHook):
-        url = cfg.LOCAL_SERVER_URL
-        habitica_webhooks = await api.get_webhooks(api_user, api_token)
-        for habitica_webhook in habitica_webhooks:
-            webhook_type = habitica_webhook["data"]["type"]
-            webhook_url = habitica_webhook["data"]["url"]
-            if webhook == webhook_type:
-                if webhook_url == cfg.LOCAL_SERVER_URL:
-                    raise KeyError(f"{webhook.webhook_type} exists on api_user {api_user}")
-            await api.create_webhook(api_user, api_token, webhook.payload)
 
-svc = HabiticaService(cfg.DRIVER)
+habitica = HabiticaService(cfg.DRIVER)

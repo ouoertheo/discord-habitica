@@ -1,7 +1,6 @@
-import logging
-import config
+import config as cfg
 
-logger = logging.getLogger(__name__)
+logger = cfg.logging.getLogger(__name__)
 
 class WebHook:
     QUEST = "questActivity"
@@ -49,7 +48,7 @@ class WebHook:
     def payload(self):
         self._payload = {
             "enabled": True,
-            "url": config.LOCAL_SERVER_URL
+            "url": cfg.LOCAL_SERVER_URL
         }
 
         if self.webhook_type == self.QUEST:
