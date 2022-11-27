@@ -108,6 +108,10 @@ async def get_party(api_user, api_token):
 
 async def get_webhooks(api_user, api_token):
     return await get(api_user, api_token, "/user/webhook")
+
+async def post_chat(api_user, api_token, group_id, message):
+    payload = {'message':message}
+    return await post(api_user, api_token, f"/groups/{group_id}/chat", payload)
     
 async def create_webhook(api_user, api_token, payload):
     return await post(api_user, api_token, "/user/webhook", payload)

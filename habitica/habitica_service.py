@@ -12,6 +12,7 @@ class HabiticaService:
         self.groups: dict[str, HabiticaGroup] = {}
         self.users: dict[str, HabiticaUser] = {}
         self.webhooks: dict[str, WebHook] = {}
+        self.load_repo()
     
     def load_repo(self):
         self.load_groups()
@@ -33,7 +34,6 @@ class HabiticaService:
                 discord_user_id
             )
             self.users[api_user].group_id = group_id
-            asyncio.create_task(self.users[api_user].fetch_user_details())
         logger.info("Loaded users")
     
     def load_groups(self):
@@ -57,7 +57,7 @@ class HabiticaService:
             user = self.users[api_user]
 
         if discord_user_id:
-            for user in self.users:
+            for user in self.users.values():
                 if user.discord_user_id == discord_user_id:
                     user = user
         return user
@@ -108,5 +108,3 @@ class HabiticaService:
         self.groups[group_id] = group
         group.dump()
 
-
-habitica = HabiticaService(cfg.DRIVER)

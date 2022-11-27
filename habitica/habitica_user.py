@@ -15,6 +15,7 @@ class HabiticaUser:
         self.webhooks: list[WebHook] = []
         self.synced = False
         self.driver = cfg.DRIVER
+        self.last_message = ""
         asyncio.create_task(self.fetch_user_details())
     
     async def fetch_user_details(self):
@@ -27,6 +28,10 @@ class HabiticaUser:
         self.group_name = party_json["data"]["name"]
         self.synced = True
         logger.info(f"User {self.user_name} synchronized.")
+    
+    async def post_chat(self, message):
+        self.last_message = message
+        await api.post_chat(self.api_user, self.api_token, self.group_id, message)
     
     async def fetch_webhooks(self):
         """

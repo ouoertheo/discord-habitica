@@ -73,5 +73,16 @@ class WebHook:
         
         return self._payload
 
-def load_webhooks():
-    pass
+
+class GroupChat:
+    def __init__(self, payload) -> None:
+        self.group_id = payload['group']['id']
+        self.group_name = payload['group']['name']
+        self.text = payload['chat']['text']
+        self.unformatted_text = payload['chat']['unformattedText']
+        self.info = payload['chat']['info']
+        self.timestamp = payload['chat']['timestamp']
+        self.uuid = payload['chat']['uuid']
+        self.user = payload['chat']['user']
+        self.username = payload['chat']['username']
+

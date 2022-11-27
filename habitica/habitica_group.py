@@ -9,13 +9,13 @@ class HabiticaGroup:
         self.group_id = group_id
         self.api_user = api_user
         self.api_token = api_token
-        self.api_users: set[str] = {}
+        self.api_users: set[str] = set()
         self.discord_channel_id = discord_channel_id
         
         self.chat_webhook = WebHook(WebHook.GROUP_CHAT, api_user)
         self.chat_webhook.GROUP_CHAT_OPTIONS["groupId"] = self.group_id
 
-        self.webhooks = [
+        self.expected_webhooks = [
             self.chat_webhook
         ]
 
@@ -26,16 +26,27 @@ class HabiticaGroup:
 
     
     async def sync_webhooks(self):
-        for webhook in self.webhooks:
+        '''
+        Check webhooks that are implemented, and ensure they are created
+        '''
+        for expected_webhook in self.expected_webhooks:
+            exists = False
             url = cfg.LOCAL_SERVER_URL
+
+            # Call the Habitica API for Webooks, then check if there's a correct one for the expected webhook
             habitica_webhooks = await api.get_webhooks(self.api_user, self.api_token)
             for habitica_webhook in habitica_webhooks['data']:
                 webhook_type = habitica_webhook["type"]
                 webhook_url = habitica_webhook["url"]
-                if webhook.webhook_type == webhook_type:
+                if expected_webhook.webhook_type == webhook_type:
                     if webhook_url == url:
-                        logger.debug(f"Group webhook type {webhook.webhook_type} exists on group_id {self.group_id}")
-                await api.create_webhook(self.api_user, self.api_token, webhook.payload)
+                        logger.debug(f"Group webhook type {expected_webhook.webhook_type} exists on group_id {self.group_id}")
+                        exists = True
+
+            # If none exists, create it
+            if not exists:
+                await api.create_webhook(self.api_user, self.api_token, expected_webhook.payload)
+                logger.info(f"Created new {expected_webhook.webhook_type} on group {self.group_id}")
 
     def dump(self):
         cfg.DRIVER.create_group(
