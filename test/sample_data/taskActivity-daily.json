@@ -1,0 +1,118 @@
+{
+    "type": "scored",
+    "direction": "up",
+    "delta": 0.9747,
+    "task": {
+        "repeat": {
+            "m": true,
+            "t": true,
+            "w": true,
+            "th": true,
+            "f": true,
+            "s": true,
+            "su": true
+        },
+        "challenge": {},
+        "group": {
+            "completedBy": {},
+            "assignedUsers": []
+        },
+        "frequency": "weekly",
+        "everyX": 1,
+        "streak": 2,
+        "nextDue": [
+            "2023-10-31T05:00:00.000Z",
+            "2023-11-01T05:00:00.000Z",
+            "2023-11-02T05:00:00.000Z",
+            "2023-11-03T05:00:00.000Z",
+            "2023-11-04T05:00:00.000Z",
+            "2023-11-06T05:00:00.000Z"
+        ],
+        "yesterDaily": true,
+        "history": [
+            {
+                "date": 1698717396699,
+                "value": 1,
+                "isDue": true,
+                "completed": true
+            },
+            {
+                "date": 1698718694166,
+                "value": 1.9747,
+                "isDue": true,
+                "completed": true
+            }
+        ],
+        "completed": true,
+        "collapseChecklist": false,
+        "type": "daily",
+        "notes": "",
+        "tags": [],
+        "value": 1.9747,
+        "priority": 1,
+        "attribute": "str",
+        "byHabitica": false,
+        "startDate": "2023-10-28T05:00:00.000Z",
+        "daysOfMonth": [],
+        "weeksOfMonth": [],
+        "checklist": [],
+        "reminders": [],
+        "createdAt": "2023-10-28T19:57:32.535Z",
+        "updatedAt": "2023-10-31T01:56:36.817Z",
+        "_id": "6e4c112f-7332-4277-b5a1-62b9bd1b74f7",
+        "text": "TestDaily",
+        "userId": "22b46637-8e96-46ec-832b-ca18c98c2229",
+        "isDue": true,
+        "id": "6e4c112f-7332-4277-b5a1-62b9bd1b74f7"
+    },
+    "user": {
+        "_tmp": {
+            "quest": {
+                "progressDelta": 0.9795734999999999
+            },
+            "streakBonus": 0.009941940000000038,
+            "leveledUp": [
+                {
+                    "initialLvl": 1,
+                    "newLvl": 2
+                }
+            ]
+        },
+        "stats": {
+            "buffs": {
+                "str": 1,
+                "int": 1,
+                "per": 1,
+                "con": 1,
+                "stealth": 0,
+                "streaks": false,
+                "snowball": false,
+                "spookySparkles": false,
+                "shinySeed": false,
+                "seafoam": false
+            },
+            "training": {
+                "int": 0,
+                "per": 0,
+                "str": 0,
+                "con": 0
+            },
+            "hp": 50,
+            "mp": 32,
+            "exp": 5,
+            "gp": 5.077269550098572,
+            "lvl": 2,
+            "class": "warrior",
+            "points": 2,
+            "str": 0,
+            "con": 0,
+            "int": 0,
+            "per": 0,
+            "toNextLevel": 50,
+            "maxHealth": 50,
+            "maxMP": 34
+        },
+        "_id": "22b46637-8e96-46ec-832b-ca18c98c2229"
+    },
+    "webhookType": "taskActivity"
+}

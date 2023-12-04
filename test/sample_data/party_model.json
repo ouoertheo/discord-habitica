@@ -1,0 +1,97 @@
+{
+    "success": true,
+    "data": [
+        {
+            "leaderOnly": {
+                "challenges": false,
+                "getGems": false
+            },
+            "privacy": "private",
+            "memberCount": 1,
+            "balance": 0,
+            "_id": "d0b9e85f-cc59-4510-a64c-ecee22e1c1b0",
+            "type": "party",
+            "name": "Ouoertheo's Party",
+            "categories": [],
+            "leader": "3006b14d-b672-4fc6-ab54-3da40dd1c55e",
+            "summary": "Ouoertheo's Party",
+            "id": "d0b9e85f-cc59-4510-a64c-ecee22e1c1b0"
+        }
+    ],
+    "notifications": [
+        {
+            "id": "6bd8e072-b769-45dc-b8e4-eb7db60abb65",
+            "data": {
+                "headerText": "Your Invitation has been Accepted",
+                "bodyText": "Cyndie Bubis accepted your invitation to Ouoertheo's Party!"
+            },
+            "seen": false,
+            "type": "GROUP_INVITE_ACCEPTED"
+        },
+        {
+            "id": "fa98cd7d-122a-4f1b-b5e8-5d6c12fbd2c0",
+            "data": {
+                "headerText": "Your Invitation has been Accepted",
+                "bodyText": "Shauna Metts accepted your invitation to Ouoertheo's Party!"
+            },
+            "seen": false,
+            "type": "GROUP_INVITE_ACCEPTED"
+        },
+        {
+            "id": "3ced429b-688e-497f-92e6-aa9a754f94c3",
+            "data": {
+                "headerText": "Your Invitation has been Accepted",
+                "bodyText": "Wrarlitt accepted your invitation to Ouoertheo's Party!"
+            },
+            "seen": false,
+            "type": "GROUP_INVITE_ACCEPTED"
+        },
+        {
+            "id": "aeb9493e-b03e-427c-a472-185fef1fa07e",
+            "data": {
+                "headerText": "Your Invitation has been Accepted",
+                "bodyText": "earlint accepted your invitation to Ouoertheo's Party!"
+            },
+            "seen": false,
+            "type": "GROUP_INVITE_ACCEPTED"
+        },
+        {
+            "id": "925e6016-e1ff-42f1-8092-e6caad60a5ad",
+            "data": {
+                "headerText": "Your Invitation has been Accepted",
+                "bodyText": "Wrarlitt accepted your invitation to Ouoertheo's Party!"
+            },
+            "seen": false,
+            "type": "GROUP_INVITE_ACCEPTED"
+        },
+        {
+            "type": "GROUP_INVITE_ACCEPTED",
+            "data": {
+                "headerText": "Your Invitation has been Accepted",
+                "bodyText": "Bb Sqrl accepted your invitation to Ouoertheo's Party!"
+            },
+            "seen": false,
+            "id": "79ddf25d-5cf7-4ad6-a80e-f0b45d94c4bd"
+        },
+        {
+            "type": "GROUP_INVITE_ACCEPTED",
+            "data": {
+                "headerText": "Your Invitation has been Accepted",
+                "bodyText": "CarboTheHutt accepted your invitation to Ouoertheo's Party!"
+            },
+            "seen": false,
+            "id": "4261aed8-cbf0-4137-837a-e4d9688fe2e8"
+        },
+        {
+            "type": "GROUP_INVITE_ACCEPTED",
+            "data": {
+                "headerText": "Your Invitation has been Accepted",
+                "bodyText": "Cyndie Bubis accepted your invitation to Ouoertheo's Party!"
+            },
+            "seen": false,
+            "id": "c0b30101-18af-47ac-9887-22c2ae7475ed"
+        }
+    ],
+    "userV": 39888,
+    "appVersion": "5.9.1"
+}

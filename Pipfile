@@ -10,6 +10,7 @@ quart = "*"
 discord-ui = "*"
 "discord.py" = "*"
 "python.dotenv" = "*"
+dacite = "*"
 
 [dev-packages]
 

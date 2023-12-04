@@ -1,0 +1,65 @@
+{
+    "type": "scored",
+    "direction": "down",
+    "delta": -1.026657310999762,
+    "task": {
+        "challenge": {},
+        "group": {
+            "completedBy": {},
+            "assignedUsers": []
+        },
+        "type": "reward",
+        "notes": "Watch TV, play a game, eat a treat, it's up to you!",
+        "tags": [],
+        "value": 0,
+        "priority": 1,
+        "attribute": "str",
+        "byHabitica": false,
+        "reminders": [],
+        "createdAt": "2023-10-22T19:23:23.685Z",
+        "updatedAt": "2023-10-31T02:04:12.314Z",
+        "_id": "1bc05890-b46d-4d42-ab90-fd7ec884666c",
+        "text": "Reward yourself",
+        "userId": "22b46637-8e96-46ec-832b-ca18c98c2229",
+        "id": "1bc05890-b46d-4d42-ab90-fd7ec884666c"
+    },
+    "user": {
+        "_tmp": {},
+        "stats": {
+            "buffs": {
+                "str": 1,
+                "int": 1,
+                "per": 1,
+                "con": 1,
+                "stealth": 0,
+                "streaks": false,
+                "snowball": false,
+                "spookySparkles": false,
+                "shinySeed": false,
+                "seafoam": false
+            },
+            "training": {
+                "int": 0,
+                "per": 0,
+                "str": 0,
+                "con": 0
+            },
+            "hp": 43.8,
+            "mp": 32,
+            "exp": 18,
+            "gp": 3.026657771378966,
+            "lvl": 1,
+            "class": "warrior",
+            "points": 0,
+            "str": 0,
+            "con": 0,
+            "int": 0,
+            "per": 0,
+            "toNextLevel": 25,
+            "maxHealth": 50,
+            "maxMP": 32
+        },
+        "_id": "22b46637-8e96-46ec-832b-ca18c98c2229"
+    },
+    "webhookType": "taskActivity"
+}

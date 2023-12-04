@@ -1,0 +1,30 @@
+{
+    "group": {
+        "id": "84c10653-7d01-4b9c-a5e3-c390997fb3a2",
+        "name": "Wrarlitt's Party"
+    },
+    "chat": {
+        "flagCount": 0,
+        "flags": {},
+        "_id": "fb0b804f-bf3a-403d-ba40-1666b2f024b3",
+        "id": "fb0b804f-bf3a-403d-ba40-1666b2f024b3",
+        "text": "`Wrarlitt found 0 Bars of Soap.`",
+        "unformattedText": "Wrarlitt found 0 Bars of Soap.",
+        "info": {
+            "type": "user_found_items",
+            "user": "Wrarlitt",
+            "quest": "atom1",
+            "items": {
+                "soapBars": 0
+            }
+        },
+        "timestamp": "2022-11-27T12: 49: 14.642Z",
+        "likes": {},
+        "uuid": "system",
+        "groupId": "84c10653-7d01-4b9c-a5e3-c390997fb3a2"
+    },
+    "webhookType": "groupChatReceived",
+    "user": {
+        "_id": "33428a26-c2db-4abe-817d-cb4a7386c8e6"
+    }
+}

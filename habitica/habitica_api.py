@@ -3,8 +3,7 @@ import json
 import aiohttp
 import config as cfg
 import time
-
-logger = cfg.logging.getLogger(__name__)
+from loguru import logger
 
 x_client = '3006b14d-b672-4fc6-ab54-3da40dd1c55e-discord-habitica'
 
@@ -36,7 +35,7 @@ class CircuitBreaker:
 
 circuit_breaker = CircuitBreaker()
 
-async def get(api_user, api_token, command_path):
+async def get(api_user, api_token, command_path, params = {}):
     if circuit_breaker.is_open():
         raise Exception(f"Circuit breaker open, call stopped: {command_path}")
     auth_headers = {
@@ -46,10 +45,10 @@ async def get(api_user, api_token, command_path):
     }
 
     async with aiohttp.ClientSession() as session:
-        async with session.get(cfg.HABITICA_API_BASE_URL+command_path, headers=auth_headers) as response:
+        async with session.get(cfg.HABITICA_API_BASE_URL+command_path, headers=auth_headers, params=params) as response:
             response_json = json.loads(await response.text())
-            if response.status >= 400:
-                message = f"HabiticaAPI: {command_path} {response.status} {await response.text()}"
+            if not response.ok:
+                message = f"HabiticaAPI: {command_path} {response.status} {response_json}"
                 logger.error(message)
                 raise Exception(message)
 
@@ -71,8 +70,8 @@ async def post(api_user, api_token, command_path, payload: dict):
             json=payload
         ) as response:
             response_json = json.loads(await response.text())
-            if response.status >= 400:
-                message = f"HabiticaAPI: {command_path} {response.status} {response.text()}"
+            if not response.ok:
+                message = f"HabiticaAPI: {command_path} {response.status} {response_json}"
                 logger.error(message)
                 raise Exception(message)
 
@@ -93,18 +92,48 @@ async def delete(api_user, api_token, command_path, id: dict):
             headers=auth_headers,
         ) as response:
             response_json = json.loads(await response.text())
-            if response.status >= 400:
-                message = f"HabiticaAPI: {command_path} {response.status} {response.text()}"
+            if not response.ok:
+                message = f"HabiticaAPI: {command_path} {response.status} {response_json}"
+                logger.error(message)
+                raise Exception(message)
+
+    return response_json
+
+async def put(api_user, api_token, command_path, payload: dict):
+    if circuit_breaker.is_open():
+        raise Exception(f"Circuit breaker open, call stopped: {command_path}")
+    auth_headers = {
+        "x-client": x_client,
+        "x-api-user": api_user,
+        "x-api-key": api_token
+    }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.put(
+            cfg.HABITICA_API_BASE_URL+command_path,
+            headers=auth_headers,
+            json=payload
+        ) as response:
+            response_json = json.loads(await response.text())
+            if not response.ok:
+                message = f"HabiticaAPI: {command_path} {response.status} {response_json}"
                 logger.error(message)
                 raise Exception(message)
 
     return response_json
 
 async def get_user(api_user, api_token):
-    return await get(api_user, api_token, "/user")
+    response = await get(api_user, api_token, "/user")
+    # 'class' causes deserialization problems
+    response['data']['stats']['character_class'] = response['data']['stats']['class']
+    del response['data']['stats']['class']
+    return response
 
 async def get_party(api_user, api_token):
-    return await get(api_user, api_token, "/groups/party")
+    return await get(api_user, api_token, "/groups", params={"type":"party"})
+
+async def get_tasks(api_user, api_token):
+    return await get(api_user, api_token, "/tasks/user")
 
 async def get_webhooks(api_user, api_token):
     return await get(api_user, api_token, "/user/webhook")
@@ -118,3 +147,6 @@ async def create_webhook(api_user, api_token, payload):
 
 async def delete_webhook(api_user, api_token, id):
     return await delete(api_user, api_token, "/user/webhook", id)
+
+async def update_user(api_user, api_token, payload):
+    return await put(api_user, api_token, "/user", payload)

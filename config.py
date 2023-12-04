@@ -1,14 +1,6 @@
 import dotenv, os
-import logging
-import logging.config
-import json
-from persistence.file_driver import PersistenceFileDriver
-
-with open("logging.json","r") as log_config:
-    log_config = json.loads(log_config.read())
-    logging.config.dictConfig(log_config)
-logger = logging.getLogger(__name__)
-
+from persistence.file_driver_new import PersistenceFileDriver
+from loguru import logger
 dotenv.load_dotenv(".env")
 
 # All configs below inherit from .env file
@@ -38,6 +30,6 @@ elif ENVIRONMENT == "DEV":
 else:
     logger.critical(f"Value: {ENVIRONMENT} for ENVIRONMENT env specified. Must be DEV or PROD")
 
-# Convenience stuff. Don
+# Convenience stuff.
 DRIVER = PersistenceFileDriver(STORE_DIR)
 LOCAL_SERVER_URL = f"{EXTERNAL_SERVER_URL}:{EXTERNAL_SERVER_PORT}/habitica"

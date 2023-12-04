@@ -1,0 +1,81 @@
+{
+    "type": "scored",
+    "direction": "up",
+    "delta": 1.0259567046270648,
+    "task": {
+        "challenge": {},
+        "group": {
+            "completedBy": {},
+            "assignedUsers": []
+        },
+        "completed": true,
+        "collapseChecklist": false,
+        "type": "todo",
+        "notes": "",
+        "tags": [],
+        "value": 0.025956704627064786,
+        "priority": 1,
+        "attribute": "str",
+        "byHabitica": false,
+        "checklist": [],
+        "reminders": [],
+        "createdAt": "2023-10-28T19:57:38.426Z",
+        "updatedAt": "2023-10-31T01:56:36.817Z",
+        "_id": "5cb050ac-6e18-4b35-8085-cce5f198f6e1",
+        "text": "TestTask",
+        "userId": "22b46637-8e96-46ec-832b-ca18c98c2229",
+        "dateCompleted": "2023-10-31T02:18:11.842Z",
+        "id": "5cb050ac-6e18-4b35-8085-cce5f198f6e1"
+    },
+    "user": {
+        "_tmp": {
+            "quest": {
+                "progressDelta": 1.0310864881502
+            },
+            "drop": {
+                "target": "Desert",
+                "canDrop": true,
+                "value": 1,
+                "key": "Potatoe",
+                "type": "Food",
+                "dialog": "You've found a Potato!"
+            }
+        },
+        "stats": {
+            "buffs": {
+                "str": 1,
+                "int": 1,
+                "per": 1,
+                "con": 1,
+                "stealth": 0,
+                "streaks": false,
+                "snowball": false,
+                "spookySparkles": false,
+                "shinySeed": false,
+                "seafoam": false
+            },
+            "training": {
+                "int": 0,
+                "per": 0,
+                "str": 0,
+                "con": 0
+            },
+            "hp": 43.8,
+            "mp": 32,
+            "exp": 24,
+            "gp": 4.073133610098572,
+            "lvl": 1,
+            "class": "warrior",
+            "points": 0,
+            "str": 0,
+            "con": 0,
+            "int": 0,
+            "per": 0,
+            "toNextLevel": 25,
+            "maxHealth": 50,
+            "maxMP": 32
+        },
+        "_id": "22b46637-8e96-46ec-832b-ca18c98c2229"
+    },
+    "webhookType": "taskActivity"
+}

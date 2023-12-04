@@ -1,0 +1,84 @@
+{
+    "type": "scored",
+    "direction": "down",
+    "delta": -1.0266572739677713,
+    "task": {
+        "challenge": {},
+        "group": {
+            "completedBy": {},
+            "assignedUsers": []
+        },
+        "up": true,
+        "down": true,
+        "counterUp": 1,
+        "counterDown": 1,
+        "frequency": "daily",
+        "history": [
+            {
+                "date": 1698526445604,
+                "value": -1.0266563886531759,
+                "scoredUp": 2,
+                "scoredDown": 3
+            },
+            {
+                "date": 1698718704304,
+                "value": -1.026655903399954,
+                "scoredUp": 1,
+                "scoredDown": 1
+            }
+        ],
+        "type": "habit",
+        "notes": "",
+        "tags": [],
+        "value": -1.026655903399954,
+        "priority": 1,
+        "attribute": "str",
+        "byHabitica": false,
+        "reminders": [],
+        "createdAt": "2023-10-28T19:57:29.396Z",
+        "updatedAt": "2023-10-31T02:18:17.246Z",
+        "_id": "89a51d39-bcb7-49ad-804f-69b27ce734fd",
+        "text": "TestHabit",
+        "userId": "22b46637-8e96-46ec-832b-ca18c98c2229",
+        "id": "89a51d39-bcb7-49ad-804f-69b27ce734fd"
+    },
+    "user": {
+        "_tmp": {},
+        "stats": {
+            "buffs": {
+                "str": 1,
+                "int": 1,
+                "per": 1,
+                "con": 1,
+                "stealth": 0,
+                "streaks": false,
+                "snowball": false,
+                "spookySparkles": false,
+                "shinySeed": false,
+                "seafoam": false
+            },
+            "training": {
+                "int": 0,
+                "per": 0,
+                "str": 0,
+                "con": 0
+            },
+            "hp": 48,
+            "mp": 32,
+            "exp": 11,
+            "gp": 6.144993619688405,
+            "lvl": 2,
+            "class": "warrior",
+            "points": 2,
+            "str": 0,
+            "con": 0,
+            "int": 0,
+            "per": 0,
+            "toNextLevel": 50,
+            "maxHealth": 50,
+            "maxMP": 34
+        },
+        "_id": "22b46637-8e96-46ec-832b-ca18c98c2229"
+    },
+    "webhookType": "taskActivity"
+}

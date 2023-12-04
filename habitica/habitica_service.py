@@ -1,110 +1,68 @@
-from habitica.habitica_group import HabiticaGroup
-from habitica.habitica_user import HabiticaUser
-from habitica.habitica_webhook import WebHook
-import habitica.habitica_api as api
-import config as cfg
-import asyncio
-
-logger = cfg.logging.getLogger(__name__)
+from app.events import event_service, habitica_events
+from habitica import habitica_api
+from habitica.model import HabiticaUser
+import os, dotenv
+dotenv.load_dotenv()
+SERVER_URL = os.getenv("SERVER_URL")
 
 class HabiticaService:
-    def __init__(self, driver) -> None:
-        self.groups: dict[str, HabiticaGroup] = {}
-        self.users: dict[str, HabiticaUser] = {}
-        self.webhooks: dict[str, WebHook] = {}
-        self.load_repo()
-    
-    def load_repo(self):
-        self.load_groups()
-        self.load_users()
-        for user in self.users.values():
-            if user.group_id in self.groups:
-                self.groups[user.group_id].add_api_user(user.api_user)
-    
-    def load_users(self):
-        users = cfg.DRIVER.get_all_users()
-        for user in users.values():
-            api_user = user["api_user"]
-            api_token = user["api_token"]
-            group_id = user["group_id"]
-            discord_user_id = user["discord_id"]
-            self.users[api_user] = HabiticaUser(
-                api_user, 
-                api_token,
-                discord_user_id
-            )
-            self.users[api_user].group_id = group_id
-        logger.info("Loaded users")
-    
-    def load_groups(self):
-        groups = cfg.DRIVER.get_all_groups()
-        for group in groups.values():
-            group_id = group["group_id"]
-            api_user = group["api_user"]
-            api_token = group["api_token"]
-            discord_channel_id = group["discord_channel_id"]
-            self.groups[group_id] = HabiticaGroup(
-                group_id,
-                api_user,
-                api_token,
-                discord_channel_id,
-            )
-        logger.info("Loaded groups")
+    """
+    Single interface for interacting with objects
+    """
+    def __init__(self, habitica_api = habitica_api) -> None:
+        self.habitica_api = habitica_api
+        self.subscribe_events()
 
-    def get_user(self, api_user="", discord_user_id=""):
-        user: HabiticaUser = None
-        if api_user:
-            user = self.users[api_user]
+    # TODO: move these events out to the app. No point being here.
+    def subscribe_events(self):
+        event_service.subscribe(habitica_events.CreateAllWebhookSubscription.type, self.handle_create_all_webhooks_event)
+        event_service.subscribe(habitica_events.DeleteAllWebhookSubscription.type, self.handle_delete_all_webhooks_event)
+        event_service.subscribe(habitica_events.WebhookSubscriptionEvent.type, self.handle_create_webhook_event)
+        event_service.subscribe(habitica_events.WebhookSubscriptionDeleteEvent.type, self.handle_delete_webhook_event)
+        event_service.subscribe(habitica_events.AddHabiticaGold.type, self.add_user_gold)
 
-        if discord_user_id:
-            for user in self.users.values():
-                if user.discord_user_id == discord_user_id:
-                    user = user
-        return user
-
-    async def register_user(self, api_user, api_token, discord_user_id, discord_channel_id):
-        """
-        Create a new user, fetch user details from Habitica API, and add 
-        it to a group.
-
-        Will create a new group if it does not exist, setting the user's
-        API creds as the group creds.
-
-        Return: New user object
-        KeyError: User already exists
-        """
-        if api_user in self.users:
-            raise KeyError(f"Api_user {self.users[api_user].user_name} already registered.")
-
-        user = HabiticaUser(api_user, api_token, discord_user_id)
-        try:
-            await user.fetch_user_details()
-        except:
-            pass
-        
-        if user.group_id in self.groups:
-            self.groups[user.group_id].add_api_user(user.user_id)
-        else:
-            await self.register_group(
-                user.group_id,
-                api_user,
-                api_token,
-                discord_channel_id
-            )
-
-        self.users[api_user] = user
-        await user.dump()
+    async def get_user(self, api_user, api_token):
+        "Calls Habitica for user and returns a HabiticaUser object."
+        user_json  = await self.habitica_api.get_user(api_user, api_token)
+        user = HabiticaUser.load(user_json)
         return user
     
-    async def register_group(self, group_id, api_user, api_token, discord_channel_id):
-        if group_id in self.groups:
-            raise KeyError(f"Group_id {group_id} already exists")
-        group = HabiticaGroup(
-            group_id,
-            api_user,
-            api_token,
-            discord_channel_id
-        )
-        self.groups[group_id] = group
-        group.dump()
+    async def add_user_gold(self, event: habitica_events.AddHabiticaGold):
+        "Add or remove user gold. Set amount to negative to remove gold."
+        user = await self.get_user(event.api_user, event.api_token)
+        current_gold = user.stats.gp
+        new_gold = current_gold + event.amount
+        payload = {
+            "stats.gp": new_gold
+        }
+        await self.habitica_api.update_user(event.api_user, event.api_token, payload)
 
+    async def handle_create_webhook_event(self, event: habitica_events.WebhookSubscriptionEvent):
+        payload = {}
+        payload['url'] = SERVER_URL
+        payload['label'] =  f"Discord Habitica {event.webhook_type} Webhook"
+        payload['type'] = event.webhook_type
+        payload['options'] = event.options
+        await self.habitica_api.create_webhook(event.api_user, event.api_token, payload)
+    
+    async def handle_create_all_webhooks_event(self, event: habitica_events.CreateAllWebhookSubscription):
+        user = await self.get_user(event.api_user, event.api_token)
+        webhook_subscriptions: list[habitica_events.WebhookSubscriptionEvent] = [
+            habitica_events.TaskWebhookSubscriptionEvent(event.api_user, event.api_token),
+            habitica_events.UserWebhookSubscriptionEvent(event.api_user, event.api_token),
+            habitica_events.QuestWebhookSubscriptionEvent(event.api_user, event.api_token),
+            habitica_events.GroupChatWebhookSubscriptionEvent(event.api_user, event.api_token, user.party._id),
+        ]
+        for webhook in webhook_subscriptions:
+            if not webhook.webhook_type in [w['type'] for w in user.webhooks]:
+                await self.handle_create_webhook_event(webhook)
+    
+    async def handle_delete_webhook_event(self, event: habitica_events.WebhookSubscriptionDeleteEvent):
+        await self.habitica_api.delete_webhook(event.api_user, event.api_token, event.id)
+    
+    async def handle_delete_all_webhooks_event(self, event: habitica_events.DeleteAllWebhookSubscription):
+        user = await self.get_user(event.api_user, event.api_token)
+        for webhook in user.webhooks:
+            if "Discord Habitica" in webhook['label']:
+                evt = habitica_events.WebhookSubscriptionDeleteEvent(event.api_user, event.api_token, webhook['id'])
+                await event_service.post_event(evt)
