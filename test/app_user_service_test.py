@@ -79,7 +79,7 @@ class HabiticaUserServiceTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(users), 2)
 
         # Test getting single user by id
-        user = self.app_user_service.get_habitica_user_link(api_user=self.HABITICA_API_USER+"1a")
+        user = self.app_user_service.get_habitica_user_link(habitica_user_id=self.HABITICA_API_USER+"1a")
         self.assertEqual(user.api_token, link1a.api_token)
 
 

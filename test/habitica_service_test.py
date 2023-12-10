@@ -1,5 +1,5 @@
 import unittest
-from habitica.habitica_service import HabiticaService
+from habitica.habitica_service import HabiticaService, InsufficientGoldException
 import app.events.event_service as event_service
 import app.events.habitica_events as habitica_events
 import os, dotenv
@@ -37,26 +37,21 @@ class HabiticaServiceTest(unittest.IsolatedAsyncioTestCase):
     async def test_add_user_gold(self):
         starting_gold = self.user.stats.gp
         amount = 20
-        add_gold_event = habitica_events.AddHabiticaGold(
-            API_USER, 
-            API_TOKEN,
-            20
-        )
-        remove_gold_event = habitica_events.AddHabiticaGold(
-            API_USER, 
-            API_TOKEN,
-            -20
-        )
 
         # Send event to add gold
-        await event_service.post_event(add_gold_event)
+        await self.habitica_service.add_user_gold(API_USER, API_TOKEN, amount)
         self.user = await self.habitica_service.get_user(API_USER, API_TOKEN)
         self.assertEqual(starting_gold + amount, self.user.stats.gp)
 
         # Send event to remove gold 
-        await event_service.post_event(remove_gold_event)
+        await self.habitica_service.add_user_gold(API_USER, API_TOKEN, -amount)
         self.user = await self.habitica_service.get_user(API_USER, API_TOKEN)
         self.assertEqual(starting_gold, self.user.stats.gp)
+
+        # Make sure InsufficientGoldException is raised
+        with self.assertRaises(InsufficientGoldException):
+            await self.habitica_service.add_user_gold(API_USER, API_TOKEN, -2000000)
+
 
 
         

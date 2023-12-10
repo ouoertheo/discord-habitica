@@ -1,10 +1,22 @@
 from app.events import event_service, habitica_events
 from habitica import habitica_api
 from habitica.model import HabiticaUser
+from habitica.events.habitica_events import AddGoldEventConfirmed
+from loguru import logger
 import os, dotenv
+import asyncio
 dotenv.load_dotenv()
 SERVER_URL = os.getenv("SERVER_URL")
 
+class InsufficientGoldException(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+        logger.error(args[0])
+
+class GoldTransactionException(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+        logger.error(args[0])
 class HabiticaService:
     """
     Single interface for interacting with objects
@@ -22,20 +34,32 @@ class HabiticaService:
         event_service.subscribe(habitica_events.AddHabiticaGold.type, self.add_user_gold)
 
     async def get_user(self, api_user, api_token):
-        "Calls Habitica for user and returns a HabiticaUser object."
+        """Calls Habitica for user and returns a HabiticaUser object."""
         user_json  = await self.habitica_api.get_user(api_user, api_token)
         user = HabiticaUser.load(user_json)
         return user
     
-    async def add_user_gold(self, event: habitica_events.AddHabiticaGold):
-        "Add or remove user gold. Set amount to negative to remove gold."
-        user = await self.get_user(event.api_user, event.api_token)
+    async def add_user_gold(self, api_user, api_token, amount):
+        """Add or remove user gold. Set amount to negative to remove gold."""
+        logger.info(f"Initiating gold transaction for amount {amount} with Habitica for api_user {api_user}...")
+        user = await self.get_user(api_user, api_token)
         current_gold = user.stats.gp
-        new_gold = current_gold + event.amount
+
+        if current_gold + amount < 0:
+            raise InsufficientGoldException(f"Habitica user {user.profile.name} has insufficient GP. Current GP is {current_gold}.")
+        
+        new_gold = current_gold + amount
         payload = {
             "stats.gp": new_gold
         }
-        await self.habitica_api.update_user(event.api_user, event.api_token, payload)
+        await self.habitica_api.update_user(api_user, api_token, payload)
+
+        # Verify gold was added.
+        user = await self.get_user(api_user, api_token)
+        if new_gold != user.stats.gp:
+            raise GoldTransactionException(f"Something went wrong updating Habitica User {user.profile.name} gold. API_TOKEN is {api_user}.")
+        asyncio.create_task(event_service.post_event(AddGoldEventConfirmed(api_user, api_token, amount)))
+        logger.info(f"Completed gold transaction for amount {amount} with Habitica for api_user {api_user}!")
 
     async def handle_create_webhook_event(self, event: habitica_events.WebhookSubscriptionEvent):
         payload = {}

@@ -11,8 +11,9 @@ class BankLoanAccount:
     """
     id: str
     name: str
-    bank_user_id: str
     bank_id: str
+    app_user_id: str
+    habitica_user_id: str
     amount: float
     interest: float
     term: int
@@ -25,18 +26,10 @@ class BankAccount:
     id: str
     name: str
     bank_id: str
-    bank_user_id: str
     app_user_id: str
+    habitica_user_id: str
     balance:int = 0
     account_type = "BankAccount"
-
-@dataclass
-class BankUser:
-    id: str
-    app_user_id: str
-    bank_id: str
-    accounts: list[BankAccount] = field(default_factory=list)
-    loan_accounts: list[BankLoanAccount] = field(default_factory=list)
  
 @dataclass
 class Bank:
@@ -44,7 +37,8 @@ class Bank:
     name: str
     owner: str
     funds: int = 0
-    users: list[BankUser] = field(default_factory=list)
+    accounts: list[BankAccount] = field(default_factory=list[BankAccount])
+    loan_accounts: list[BankLoanAccount] = field(default_factory=list[BankLoanAccount])
 
     def dump(self):
         return asdict(self)

@@ -6,18 +6,21 @@ from app.utils import match_all_in_list, ensure_one
 class AppUserExistsException(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
+        logger.error(args[0])
         
 class HabiticaUserLinkExists(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
-
+        logger.error(args[0])
 class AppUserNotFoundException(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
+        logger.error(args[0])
 
 class UserMapNotFoundException(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
+        logger.error(args[0])
 
 class AppUserService:
     def __init__(self, persistence_driver: PersistenceDriverBase,) -> None:
@@ -77,7 +80,7 @@ class AppUserService:
         """
         app_user = self.get_app_user(app_user_id=app_user_id)
 
-        if self.get_habitica_user_links(app_user_id=app_user_id, api_user=api_user):
+        if self.get_habitica_user_links(app_user_id=app_user_id, habitica_user_id=api_user):
             raise HabiticaUserLinkExists(f"App user with id {app_user_id} already has Habitica User Link for {api_user}")
 
         habitica_user = HabiticaUserLink(app_user.id, api_user, api_token, habitica_user_name, habitica_group_id)
@@ -87,7 +90,7 @@ class AppUserService:
         logger.debug(f"Added habitica user {api_user} to App User {app_user_id}")
         return habitica_user
 
-    def get_habitica_user_links(self, app_user_id="", api_user="") -> list[HabiticaUserLink]:
+    def get_habitica_user_links(self, app_user_id="", habitica_user_id="") -> list[HabiticaUserLink]:
         """
         Searches for HabiticaUserLink objects and returns them. Will return all if no criteria specified.
         Will get all links and search them if app_user_id is not specified.
@@ -101,13 +104,13 @@ class AppUserService:
         habitica_user_links = match_all_in_list(
             app_user_links,
             app_user_id=app_user_id,
-            api_user=api_user
+            api_user=habitica_user_id
         )
         return habitica_user_links
     
     @ensure_one
-    def get_habitica_user_link(self, app_user_id="", api_user="") -> HabiticaUserLink:
-        return self.get_habitica_user_links(app_user_id, api_user)
+    def get_habitica_user_link(self, app_user_id="", habitica_user_id="") -> HabiticaUserLink:
+        return self.get_habitica_user_links(app_user_id, habitica_user_id)
 
     # ---------------- NOT IMPLEMENTED PROPERLY YET --------------------------
     def get_user_maps(self, app_user_id="", discord_channel: str = "", api_user: str = "") -> list[UserMap]:

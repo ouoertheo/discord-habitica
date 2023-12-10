@@ -1,6 +1,7 @@
 
 from discord.ext.commands import Bot
 from discord import Intents 
+from discord_bot.bot import DiscordHabiticaBot
 
 import asyncio
 from loguru import logger
@@ -8,21 +9,23 @@ import logging
 import inspect
 import sys
 from uvicorn import Config, Server
-
-# Cogs
-from cogs.messaging_cog import MessagingCog
-from cogs.app_cog import AppCog
+from enum import Enum
+from dataclasses import dataclass
 
 # App Imports
 import config as cfg
-from app.app_service import AppService
 from app.webhook_service import webhook_fastapi_app
-import habitica.habitica_api as api
 from persistence.file_driver_new import PersistenceFileDriver
+import habitica.habitica_api as api
+
+# Service Imports
 from habitica.habitica_service import HabiticaService
 from app.app_service import AppService
 from app.bank_service import BankService
 from app.app_user_service import AppUserService
+
+# Handler Imports
+from habitica.handlers.habitica_service_handlers import HabiticaServiceHandlers
 
 # Set logging levels. Intercept all logs
 logger.remove()
@@ -50,44 +53,49 @@ async def handle_exception(loop, context):
     msg = context.get("exception", context["message"])
     logger.error(f"Caught exception: {msg}")
 
+# Handler dependency injection class.
+@dataclass
+class EventHandlers:
+    habitica_service_handlers: HabiticaServiceHandlers
+
+
 async def main():
     invite_url = "https://discord.com/oauth2/authorize?client_id=1012353261916913704&permissions=17979471359040&scope=bot"
     logger.info(f"Starting Discord Habitica. Invite URL: {invite_url}")
-    loop = asyncio.get_event_loop()
-    loop.set_exception_handler(handle_exception)
 
-    # Configure bot
-    intents = Intents.default()
-    intents.message_content = True
-    intents.members = True
-    bot = Bot(".",intents=intents)
-
-    # Instantiate persistence
     driver = PersistenceFileDriver("store")
 
-    # Service Instances
+    # TODO: Create a dependency injection class for Service Dependencies.
+    # Service Dependencies 
     app_user_service = AppUserService(driver)
     bank_service = BankService(driver)
     habitica_service = HabiticaService(api)
-
     app_service = AppService(
         api,
         driver,
         app_user_service,
         bank_service,
         habitica_service
-    ) # TODO: Figure out why I need to inject `api` here...
+    )
 
-    #
+    # Event Handlers
+    event_handlers = EventHandlers(
+        habitica_service_handlers=HabiticaServiceHandlers(habitica_service)
+    )
 
-    # Required to run server in a specific loop. Right?
+    # Create bot
+    bot = DiscordHabiticaBot(prefix="!", ext_dir="discord_bot/cogs", app_service=app_service)
+
+
+    # Initialize asyncio loop
     loop = asyncio.new_event_loop()
+    loop.set_exception_handler(handle_exception)
+    
+    # Configure Webhook Server
     webhook_fastapi_app_config = Config(webhook_fastapi_app, host="0.0.0.0", port=12555, loop=loop)
     webhook_fastapi_app_server = Server(webhook_fastapi_app_config)
 
     await asyncio.gather(
-        bot.add_cog(MessagingCog(bot)),
-        bot.add_cog(AppCog(bot, app_service)),
         bot.start(cfg.DISCORD_TOKEN),
         webhook_fastapi_app_server.serve()
     )
