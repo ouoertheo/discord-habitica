@@ -1,6 +1,9 @@
 # Habitica Bank
 from dataclasses import dataclass, asdict, field
+from typing import Optional
+from enum import Enum
 import dacite
+from uuid import uuid4
 
 @dataclass
 class BankLoanAccount:
@@ -30,6 +33,22 @@ class BankAccount:
     habitica_user_id: str
     balance:int = 0
     account_type = "BankAccount"
+
+@dataclass
+class BankTransaction:
+    id: str
+    amount: float
+    bank_id: str
+    app_user_id: str 
+    habitica_user_id: str
+    bank_account_id: str
+    description: str
+    balance: float = 0.0
+    src_completed: bool = False
+    dst_completed: bool = False
+
+    def dump(self):
+        return asdict(self)
  
 @dataclass
 class Bank:

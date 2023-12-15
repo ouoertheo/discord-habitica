@@ -1,4 +1,6 @@
+from typing import Any, Coroutine
 from app.model.bank import Bank, BankLoanAccount, BankAccount
+from app.transactor_service import Transactable
 from persistence.driver_base_new import PersistenceDriverBase
 from loguru import logger
 from uuid import uuid4
@@ -39,7 +41,7 @@ class BankInsufficientFundsException(Exception):
         super().__init__(*args)
         logger.error(args[0])
 
-class BankService:
+class BankService(Transactable):
     def __init__(self, persistence_driver: PersistenceDriverBase) -> None:
         self.driver = persistence_driver
         self.bank_store = self.driver.stores.BANK
@@ -183,29 +185,35 @@ class BankService:
     ## Manage Bank Transactions ##
     ##############################
 
-    def deposit(self, amount, bank_account_id, habitica_user_id, bank_id):
+    async def _add(self, amount, bank_account_id, bank_id):
+        self.deposit(amount, bank_account_id, bank_id)
+    
+    async def _remove(self, amount, bank_account_id, bank_id):
+        self.withdraw(amount, bank_account_id, bank_id)
+
+    def deposit(self, amount, bank_account_id, bank_id):
         "Deposit money. Returns the new balance"
-        account = self.get_account(bank_id=bank_id, habitica_user_id=habitica_user_id, bank_account_id=bank_account_id, account_type="BankAccount")
+        account = self.get_account(bank_id=bank_id, bank_account_id=bank_account_id, account_type="BankAccount")
         account.balance += amount
         
         self.driver.update(self.bank_store, self.get_bank(bank_id=bank_id).dump())
-        logger.info(f"Habitica User {habitica_user_id} deposited {amount} GP into {account.name} in bank {bank_id}")
+        logger.info(f"Habitica User {account.habitica_user_id} deposited {amount} GP into {account.name} in bank {bank_id}")
         return account.balance
     
-    def withdraw(self, amount, bank_account_id, habitica_user_id, bank_id):
+    def withdraw(self, amount, bank_account_id, bank_id):
         "Withdraw money. Returns the new balance"
-        account = self.get_account(bank_id=bank_id, habitica_user_id=habitica_user_id, bank_account_id=bank_account_id, account_type="BankAccount")
+        account = self.get_account(bank_id=bank_id, bank_account_id=bank_account_id, account_type="BankAccount")
 
         if account.balance - amount < 0:
             raise BankInsufficientFundsException(f"Account {account.name} has insufficient funds to withdraw {amount}. Current balance is {account.balance}")
         account.balance -= amount
 
         self.driver.update(self.bank_store, self.get_bank(bank_id=bank_id).dump())
-        logger.info(f"Habitica User {habitica_user_id} withdrew {amount} GP from {account.name} in bank {bank_id}")
+        logger.info(f"Habitica User {account.habitica_user_id} withdrew {amount} GP from {account.name} in bank {bank_id}")
         return account.balance
     
-    def calculate_payment(self, bank_account_id, habitica_user_id, bank_id):
-        account = self.get_account(bank_id=bank_id, habitica_user_id=habitica_user_id, bank_account_id=bank_account_id, account_type="BankLoanAccount")
+    def calculate_payment(self, bank_account_id, bank_id):
+        account = self.get_account(bank_id=bank_id, bank_account_id=bank_account_id, account_type="BankLoanAccount")
         interest = (account.principal - account.balance) * account.interest
         payment = (account.principal / account.term) + interest
         return payment

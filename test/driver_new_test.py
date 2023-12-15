@@ -60,22 +60,22 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
             driver = self.ephemeral_test_drivers["file_driver"]
         app_user_service = AppUserService(driver)
         app_user = app_user_service.create_app_user("discord_user")
-        app_user_service.add_habitica_user_link(app_user.id, "discord_channel","api_user","api_token")
+        app_user_service.add_habitica_user_link(app_user.id,"api_user","api_token","username")
         driver.create(driver.stores.APP_USER, app_user.dump())
         user = driver.read(driver.stores.APP_USER, "discord_user")
-        self.assertEquals(user["user_maps"][0]["api_user"], "api_user")
+        self.assertEquals(user["habitica_user_links"][0]["api_user"], "api_user")
     
     async def test_update_object(self, driver: PersistenceDriverBase = None):
         if not driver:
             driver = self.ephemeral_test_drivers["file_driver"]
         app_user_service = AppUserService(driver)
         app_user = app_user_service.create_app_user("discord_user")
-        app_user_service.add_habitica_user_link(app_user.id, "discord_channel","api_user","api_token")
+        app_user_service.add_habitica_user_link(app_user.id,"api_user","api_token","username")
         driver.create(driver.stores.APP_USER,app_user.dump())
-        app_user_service.add_habitica_user_link(app_user.id, "discord_channel2","api_user2","api_token2")
+        app_user_service.add_habitica_user_link(app_user.id,"api_user2","api_token2","username2")
         driver.update(driver.stores.APP_USER, app_user.dump())
         user = driver.read(driver.stores.APP_USER, "discord_user")
-        self.assertEquals(user["user_maps"][1]["api_user"], "api_user2")
+        self.assertEquals(user["habitica_user_links"][1]["api_user"], "api_user2")
         
     async def test_delete_object(self, driver: PersistenceDriverBase = None):
         if not driver:
@@ -88,10 +88,10 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
             
         app_user = app_user_service.create_app_user("discord_user")
 
-        app_user_service.add_habitica_user_link(app_user.id, "discord_channel","api_user","api_token")
+        app_user_service.add_habitica_user_link(app_user.id,"api_user","api_token","username")
         driver.create(driver.stores.APP_USER, app_user.dump())
         user = driver.read(driver.stores.APP_USER, "discord_user")
-        self.assertEquals(user["user_maps"][0]["api_user"], "api_user")
+        self.assertEquals(user["habitica_user_links"][0]["api_user"], "api_user")
 
         driver.delete(driver.stores.APP_USER, "discord_user")
         with self.assertRaises(KeyError):
@@ -103,12 +103,12 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
         app_user_service = AppUserService(driver)
         app_user = app_user_service.create_app_user("discord_user")
         app_user2 = app_user_service.create_app_user("discord_user2")
-        app_user_service.add_habitica_user_link(app_user.id, "discord_channel","api_user","api_token")
-        app_user_service.add_habitica_user_link(app_user2.id, "discord_channel2","api_user2","api_token2")
+        app_user_service.add_habitica_user_link(app_user.id,"api_user","api_token","username")
+        app_user_service.add_habitica_user_link(app_user2.id,"api_user2","api_token2","username2")
         driver.create(driver.stores.APP_USER, app_user.dump())
         driver.create(driver.stores.APP_USER, app_user2.dump())
         
         app_users_raw = driver.list(driver.stores.APP_USER)
-        self.assertEqual(app_users_raw["discord_user"]["user_maps"][0]["api_user"], "api_user")
-        self.assertEqual(app_users_raw["discord_user2"]["user_maps"][0]["api_user"], "api_user2")
+        self.assertEqual(app_users_raw["discord_user"]["habitica_user_links"][0]["api_user"], "api_user")
+        self.assertEqual(app_users_raw["discord_user2"]["habitica_user_links"][0]["api_user"], "api_user2")
 

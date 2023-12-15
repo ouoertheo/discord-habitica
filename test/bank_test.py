@@ -128,7 +128,7 @@ class BankServiceTest(unittest.TestCase):
         account_name = "test_account"
 
         account = self.bank_service.open_account(account_name, self.bank.id, app_user_id, habitica_user_id)
-        self.bank_service.deposit(100, account.id, app_user_id, self.bank.id)
+        self.bank_service.deposit(100, account.id, self.bank.id)
         self.assertEqual(account.balance, 100)
         
         # Test persistence
@@ -142,10 +142,10 @@ class BankServiceTest(unittest.TestCase):
         account_name = "test_account"
         
         account = self.bank_service.open_account(account_name, self.bank.id, app_user_id, habitica_user_id)
-        self.bank_service.deposit(100, account.id, app_user_id, self.bank.id)
+        self.bank_service.deposit(100, account.id, self.bank.id)
         self.assertEqual(account.balance, 100)
 
-        self.bank_service.withdraw(50, account.id, app_user_id, self.bank.id)
+        self.bank_service.withdraw(50, account.id, self.bank.id)
         self.assertEqual(account.balance, 50)
         
         # Test persistence
@@ -157,7 +157,7 @@ class BankServiceTest(unittest.TestCase):
         app_user_id = "Knight1"
         habitica_user_id = "Knight1"
         account = self.bank_service.open_loan_account("Nih! Loan", self.bank.id, app_user_id, habitica_user_id, 1000.0, 0.03, 50)
-        self.assertTrue(self.bank_service.calculate_payment(account.id, app_user_id, self.bank.id), 50)
+        self.assertTrue(self.bank_service.calculate_payment(account.id, self.bank.id), 50)
 
     def test_load_and_dump(self):
         app_user_id = "Knight1"

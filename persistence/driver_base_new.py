@@ -7,6 +7,7 @@ class StoreType(StrEnum):
     BANK = "bank"
     BANK_USER = "bank_user"
     BANK_ACCOUNT = "bank_account"
+    TRANSACTION = "transaction"
 
 class PersistenceDriverBase(metaclass=abc.ABCMeta):
     stores = StoreType

@@ -135,3 +135,4 @@ class AppUserService:
     def get_user_map(self, app_user_id="", discord_channel: str = "", api_user: str = "") -> UserMap:
         user_map = self.get_user_maps(app_user_id, discord_channel, api_user)
         return user_map
+    

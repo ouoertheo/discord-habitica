@@ -31,7 +31,7 @@ class AppService:
     ###############
     ## App Users ##
     ###############
-    async def register_habitica_account(self, app_account_id, discord_channel, api_user, api_token):
+    async def register_habitica_account(self, app_user_id, discord_channel, api_user, api_token):
         """
         Create a new AppUser if it doesnt exist. Register and link the Habitica user to the Discord channel id.
         """
@@ -39,9 +39,9 @@ class AppService:
 
         # Create the AppUser if it does not exist yet, then create the Habitica User
         # NOTE: This is where I choose to bind the Discord User Id as the identifier for App Users
-        app_user = self.app_user_service.get_app_user(app_user_id=app_account_id)
+        app_user = self.app_user_service.get_app_user(app_user_id=app_user_id)
         if not app_user:
-            app_user = self.app_user_service.create_app_user(app_account_id) 
+            app_user = self.app_user_service.create_app_user(app_user_id) 
 
         # Call Habitica for the User so we have a name to create the habitica user link with.
         habitica_user = await self.habitica_service.get_user(api_user, api_token)

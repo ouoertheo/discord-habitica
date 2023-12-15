@@ -198,19 +198,21 @@ class BankCog(commands.Cog):
         else:
             # Remove message with view
             await original_interaction.delete_original_response()
-            try:
-                # Must withdraw from bank first to see if exception like insufficient funds is thrown
-                self.bank_service.withdraw(amount=amount, bank_account_id=bank_account.id, habitica_user_id=habitica_user.api_user, bank_id=bank_account.bank_id)
-                gold_withdraw_successful = True
-                await self.habitica_service.add_user_gold(api_user=habitica_user.api_user, api_token=habitica_user.api_token, amount=amount)
-                gold_add_successful = True # Verify we didn't raise exception on add_user_gold
-                await interaction.response.send_message(f"Withdrew {amount} from account {bank_account.name}. New balance is {bank_account.balance}", ephemeral=True)
-            except Exception as e:
-                # If the update gold to habitica account failed and money was withdrawn, deposit the money back into bank account
-                if not gold_add_successful and gold_withdraw_successful:
-                    self.bank_service.deposit(amount=amount, bank_account_id=bank_account.id, habitica_user_id=habitica_user.api_user, bank_id=bank_account.bank_id)
-                await interaction.response.send_message(f"Failed to withdraw '{amount}' from bank account '{bank_account.name}'. Error: {e}", ephemeral=True)
-                raise e
+    
+    async def withdraw_gold(self):
+        try:
+            # Must withdraw from bank first to see if exception like insufficient funds is thrown
+            self.bank_service.withdraw(amount=amount, bank_account_id=bank_account.id, habitica_user_id=habitica_user.api_user, bank_id=bank_account.bank_id)
+            gold_withdraw_successful = True
+            await self.habitica_service.add_user_gold(api_user=habitica_user.api_user, api_token=habitica_user.api_token, amount=amount)
+            gold_add_successful = True # Verify we didn't raise exception on add_user_gold
+            await interaction.response.send_message(f"Withdrew {amount} from account {bank_account.name}. New balance is {bank_account.balance}", ephemeral=True)
+        except Exception as e:
+            # If the update gold to habitica account failed and money was withdrawn, deposit the money back into bank account
+            if not gold_add_successful and gold_withdraw_successful:
+                self.bank_service.deposit(amount=amount, bank_account_id=bank_account.id, habitica_user_id=habitica_user.api_user, bank_id=bank_account.bank_id)
+            await interaction.response.send_message(f"Failed to withdraw '{amount}' from bank account '{bank_account.name}'. Error: {e}", ephemeral=True)
+            raise e
 
     async def callback_deposit_gold(self, interaction: discord.Interaction, finish_button: UIButtonFinish, original_interaction: discord.Interaction, amount: int):
         view: discord.ui.View = finish_button.view
