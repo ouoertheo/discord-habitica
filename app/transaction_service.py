@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from app.utils import match_all_in_list, ensure_one
 from datetime import datetime, timezone
 import contextvars
-
+from functools import wraps
 
 class RollbackException(Exception):
     def __init__(self, *args: object) -> None:
@@ -117,7 +117,9 @@ class TransactableAttribute:
             if self.private_name in vars(obj):
                 operation = ledger.add_operation(obj, self.private_name, vars(obj)[self.private_name], value, None)
             setattr(obj, self.private_name, value)
-            operation.success = True
+            
+            if operation:
+                operation.success = True
         except Exception as e:
             if operation:
                 operation.success = False
@@ -127,97 +129,66 @@ class TransactableAttribute:
                 logger.exception(e)
             else:
                 raise e
-
-class Transactable:
-    def wrapper(self, fcn, ignore=False, *args, **kwargs):
-        try:
-            if not ignore:
-                index = self.index(item) if item in self else None
-                item = self[index] if index else None
-                operation = ledger.add_operation(self, index, item, None, self.rollback_remove)
-            fcn(*args, *kwargs)
-            operation.success = True
-        except Exception as e:
-            if operation:
-                operation.success = False
-            # Raise only if not handled in a transaction 
-            if ledger.current_transaction:
-                logger.exception(e)
-            else:
-                raise e
-
 
 class TransactableList(list):
     def __init__(self, iterable=[]):
         super().__init__(item for item in iterable)
     
-    def __setitem__(self, index, item):
+    def _handle_exception(self, operation: Operation, e):
+        if operation:
+            operation.success = False
+        
+        # Raise only if not handled in a transaction 
+        if ledger.current_transaction:
+            logger.exception(e)
+        else:
+            raise e
+    
+    def __setitem__(self, index, item, ignore=False):
         operation = None
         try:
-            operation = ledger.add_operation(self, index, self[index], item, self.rollback_set)
+            if not ignore:
+                operation = ledger.add_operation(self, index, self[index], item, self.rollback_set)
             super().__setitem__(index, item)
-            operation.success = True
+            if not ignore:
+                operation.success = True
         except Exception as e:
-            if operation:
-                operation.success = False
-            
-            # Raise only if not handled in a transaction 
-            if ledger.current_transaction:
-                logger.exception(e)
-            else:
-                raise e
-    
+            self._handle_exception(operation, e)
+
     def insert(self, index: SupportsIndex, item: Any, ignore=False) -> None:
         operation = None
         try:
             if not ignore:
-                operation = ledger.add_operation(self, index, self[index], item, self.rollback_add)
+                operation = ledger.add_operation(self, index, None, item, self.rollback_add)
             super().insert(index, item) 
-            operation.success = True
-        except Exception as e:
             if operation:
-                operation.success = False
-            
-            # Raise only if not handled in a transaction 
-            if ledger.current_transaction:
-                logger.exception(e)
-            else:
-                raise e
+                operation.success = True
+        except Exception as e:
+            self._handle_exception(operation, e)
     
-    def append(self, item):
+    def append(self, item, ignore=False):
         operation = None
         try:
-            operation = ledger.add_operation(self, len(self)-1, None, item, self.rollback_add)
+            if not ignore:
+                operation = ledger.add_operation(self, len(self)-1, None, item, self.rollback_add)
             super().append(item)
-            operation.success = True
-        except Exception as e:
             if operation:
-                operation.success = False
-            
-            # Raise only if not handled in a transaction 
-            if ledger.current_transaction:
-                logger.exception(e)
-            else:
-                raise e
+                operation.success = True
+        except Exception as e:
+            self._handle_exception(operation, e)
     
     def remove(self, item, ignore=False) -> None:
         operation = None
         try:
             if not ignore:
                 index = self.index(item) if item in self else None
-                item = self[index] if index else None
-                operation = ledger.add_operation(self, index, item, None, self.rollback_remove)
+                this_item = self[index] if not index == None else None
+                operation = ledger.add_operation(self, index, this_item, None, self.rollback_remove)
             super().remove(item)
-            operation.success = True
-        except Exception as e:
             if operation:
-                operation.success = False
-            
-            # Raise only if not handled in a transaction 
-            if ledger.current_transaction:
-                logger.exception(e)
-            else:
-                raise e
+                operation.success = True
+        except Exception as e:
+            self._handle_exception(operation, e)
 
     def rollback_add(self, operation: Operation):
         self.remove(operation.new_value, ignore=True)
