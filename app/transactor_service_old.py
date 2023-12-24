@@ -22,23 +22,24 @@ class Transactable(abc.ABC):
 
     @abc.abstractmethod
     async def _add(self, **kwargs) -> None:
-        pass
+        ...
     
     @abc.abstractmethod
     async def _remove(self, **kwargs) -> None:
-        pass
+        ...
 
-    async def add(self, params):
+    async def add(self, **kwargs):
         try:
-            await self._add(**params)
+            await self._add(kwargs)
         except Exception as e:
             raise TransactableAddException(str(e))
 
-    async def remove(self, params) -> None:
+    async def remove(self, **kwargs) -> None:
         try:
-            await self._remove(**params)
+            await self._remove(kwargs)
         except Exception as e:
             raise TransactableRemoveException(str(e))
+
 
 class TransactionStatus(Enum):
     CREATED = "Created"
@@ -81,7 +82,8 @@ class Transaction:
             "completed": self.completed,
             "exceptions": self.exceptions
         },
- 
+
+
 
 class TransactorService:
     status = TransactionStatus
@@ -114,4 +116,5 @@ class TransactorService:
         transaction.completed = datetime.now()
         self.driver.create(self.store, transaction.dump())
         return transaction
+
 

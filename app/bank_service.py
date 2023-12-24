@@ -1,6 +1,6 @@
 from typing import Any, Coroutine
 from app.model.bank import Bank, BankLoanAccount, BankAccount
-from app.transactor_service import Transactable
+from app.transactor_service_old import Transactable
 from persistence.driver_base_new import PersistenceDriverBase
 from loguru import logger
 from uuid import uuid4
