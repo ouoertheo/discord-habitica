@@ -13,12 +13,12 @@ import test.habitica_api_mock as api
 class BankServiceTest(unittest.TestCase):
     def setUp(self) -> None:
         self.driver = PersistenceMemoryDriver()
-        self.bank_service = bank_service.BankService(self.driver)
+        self.bank_service = BankService(self.driver)
         self.bank = self.bank_service.create_bank("Bank of Shrubberies","Knights")
     
     def duplicate_service(self):
         # Verify persistence creating a new bank service with copy and testing user is in there.
-        duplicate_bank_service = bank_service.BankService(PersistenceMemoryDriver())
+        duplicate_bank_service = BankService(PersistenceMemoryDriver())
         duplicate_bank_service.driver.store_cache = self.bank_service.driver.store_cache
         duplicate_bank_service.init_store()
         return duplicate_bank_service
