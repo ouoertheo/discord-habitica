@@ -1,3 +1,4 @@
+from datetime import date, datetime, timezone
 from typing import Any, Coroutine
 from app.model.bank import Bank, BankLoanAccount, BankAccount
 from app.transactor_service_old import Transactable
@@ -123,7 +124,7 @@ class BankService(Transactable):
         logger.info(f"App user {habitica_user_id} opened account {account_name} in bank {bank_id}.")
         return account 
     
-    def open_loan_account(self, account_name: str, bank_id, app_user_id: str, habitica_user_id:str, amount: float, interest: float, term: int):
+    def open_loan_account(self, account_name: str, bank_id, app_user_id: str, habitica_user_id:str, amount: float, term: int):
         bank = self.get_bank(bank_id=bank_id)
 
         # Check if account is unique within the bank
@@ -137,10 +138,11 @@ class BankService(Transactable):
             bank_id=bank.id, 
             habitica_user_id=habitica_user_id,
             app_user_id=app_user_id,
-            amount=amount, 
-            interest=interest, 
-            term=term, 
-            principal=amount
+            principal=amount, 
+            mpr=bank.loan_apr, 
+            term_days=term, 
+            balance=amount,
+            opened_date=date.today()
         )
         bank.loan_accounts.append(account)
         self.driver.update(self.bank_store, bank.dump())
@@ -214,6 +216,6 @@ class BankService(Transactable):
     
     def calculate_payment(self, bank_account_id, bank_id):
         account = self.get_account(bank_id=bank_id, bank_account_id=bank_account_id, account_type="BankLoanAccount")
-        interest = (account.principal - account.balance) * account.interest
-        payment = (account.principal / account.term) + interest
+        daily_interest = account.principal * (account.mpr/(365/12))
+        payment = (account.principal / account.term_days) + daily_interest
         return payment

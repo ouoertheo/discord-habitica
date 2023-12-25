@@ -101,12 +101,14 @@ class OperationLedger:
 ledger = OperationLedger()
 
 
-class TransactableAttribute:
+class TransactableAttribute(int):
     def __set_name__(self, owner, name):
         self.public_name = name
         self.private_name = '_' + name
 
     def __get__(self, obj, objtype=None):
+        if not obj:
+            return None
         value = getattr(obj, self.private_name)
         return value
 
@@ -129,6 +131,41 @@ class TransactableAttribute:
                 logger.exception(e)
             else:
                 raise e
+
+
+class TransactableInt(int):
+    def __new__(cls, value=0):
+        obj = super().__new__(cls, value)
+        return obj
+
+    def __init__(self, value=0):
+        self._original_value = value
+
+    def _handle_exception(self, operation: Operation, e):
+        if operation:
+            operation.success = False
+
+        # Raise only if not handled in a transaction
+        if ledger.current_transaction:
+            print("Logging exception:", e)
+        else:
+            raise e
+
+    def __set__(self, name, value):
+        if name == "_original_value":
+            super().__setattr__(name, value)
+        else:
+            operation = None
+            try:
+                operation = ledger.add_operation(self, self._original_value, value, self.rollback_set)
+                super().__setattr__(name, value)
+                operation.success = True
+            except Exception as e:
+                self._handle_exception(operation, e)
+
+    def rollback_set(self, operation: Operation):
+        super().__setattr__("_original_value", operation.old_value)
+
 
 class TransactableList(list):
     def __init__(self, iterable=[]):
@@ -199,17 +236,78 @@ class TransactableList(list):
     def rollback_set(self, operation: Operation):
         index = self.index(operation.new_value)
         self[index] = operation.old_value
-        
 
+class TransactableDict(dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-class Person:
+    def _handle_exception(self, operation: Operation, e):
+        if operation:
+            operation.success = False
 
-    age = TransactableAttribute()             # Descriptor instance
+        # Raise only if not handled in a transaction
+        if ledger.current_transaction:
+            print("Logging exception:", e)
+        else:
+            raise e
 
-    def __init__(self, name, age):
-        self.name = name                # Regular instance attribute
-        self.age = age                  # Calls __set__()
+    def __setitem__(self, key, value, ignore=False):
+        operation = None
+        try:
+            if not ignore:
+                # Key may not exist
+                operation = ledger.add_operation(self, key, self.get(key, None), value, self.rollback_set)
+            super().__setitem__(key, value)
+            if not ignore:
+                operation.success = True
+        except Exception as e:
+            self._handle_exception(operation, e)
 
-    def birthday(self):
-        self.age += 1                   # Calls both __get__() and __set__()
+    def __delitem__(self, key, ignore=False):
+        operation = None
+        try:
+            if not ignore:
+                # Key must exist
+                operation = ledger.add_operation(self, key, self.get(key), None, self.rollback_remove)
+            super().__delitem__(key)
+            if operation:
+                operation.success = True
+        except Exception as e:
+            self._handle_exception(operation, e)
 
+    def update(self, *args, **kwargs):
+        operation = None
+        try:
+            if not kwargs.get('ignore', False):
+                # If 'ignore' is not provided in kwargs, consider it as False
+                for key, value in dict(*args, **kwargs).items():
+                    # Key may not exist
+                    operation = ledger.add_operation(self, key, self.get(key, None), value, self.rollback_set)
+            super().update(*args, **kwargs)
+            if operation:
+                operation.success = True
+        except Exception as e:
+            self._handle_exception(operation, e)
+
+    def pop(self, key, default=None, ignore=False):
+        operation = None
+        try:
+            if not ignore:
+                # Key may not exist (in the case default is set)
+                operation = ledger.add_operation(self, key, self.get(key, None), None, self.rollback_remove)
+            return super().pop(key, default)
+        except Exception as e:
+            self._handle_exception(operation, e)
+
+    def rollback_set(self, operation: Operation):
+        # Two ways to set, it can create a key or modify existing key
+        if operation.old_value == None:
+            del self[operation.attr_name]
+        else:
+            self[operation.attr_name] = operation.old_value
+
+    def rollback_remove(self, operation: Operation):
+        if operation.attr_name not in self:
+            self[operation.attr_name] = operation.old_value
+        else:
+            raise Exception(f"Attempted rollback of dict key {operation.attr_name} remove failed because key exists.")

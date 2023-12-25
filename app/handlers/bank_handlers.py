@@ -4,6 +4,7 @@ from app.app_user_service import AppUserService, UserMapNotFoundException
 from habitica.habitica_service import HabiticaService
 from app.events.event_service import post_event, subscribe
 from app.events.discord_events import SendDiscordMessage
+from app.transaction_service import ledger
 
 
 class BankEventHandlers:
@@ -12,6 +13,7 @@ class BankEventHandlers:
         self.app_user_service = app_user_service
         self.habitica_service = habitica_service
         subscribe(bank_events.CreateBank.type, self.handle_create_bank_event)
+        subscribe(bank_events.WithdrawGold.type, self.handle_bank_withdraw)
 
     async def handle_create_bank_event(self, event: bank_events.CreateBank):
         try:
@@ -29,15 +31,11 @@ class BankEventHandlers:
             habitica_user = self.app_user_service.get_habitica_user_link(habitica_user_id=bank_account.habitica_user_id)
 
             # Create transaction and initiate withdrawal.
-            transaction = self.bank_service.create_transaction(bank_account.bank_id, bank_account.id, event.amount, event.description)
-            self.bank_service.withdraw(transaction)
-            
-            await self.habitica_service.add_user_gold(api_user=habitica_user.api_user, api_token=habitica_user.api_token, amount=event.amount)
-            await post_event(SendDiscordMessage(f"Withdrew {event.amount} from account {bank_account.name}. New balance is {bank_account.balance}", ephemeral=True))
+            async with ledger as transaction:
+                self.bank_service.withdraw(event.amount, event.bank_account_id, event.bank_id)
+                await self.habitica_service.add_user_gold(api_user=habitica_user.api_user, api_token=habitica_user.api_token, amount=event.amount)
+            await post_event(SendDiscordMessage(event.discord_channel_id, f"Withdrew {event.amount} from account {bank_account.name}. New balance is {bank_account.balance}", ephemeral=True))
         except Exception as e:
-            # If the update gold to habitica account failed and money was withdrawn, deposit the money back into bank account
-            if transaction.src_completed and not transaction.dst_completed:
-                rollback_transaction = self.bank_service.create_transaction(bank_account.bank_id, bank_account.id, event.amount, event.description)
-                self.bank_service.deposit(amount=transaction.amount, bank_account_id=bank_account.id, habitica_user_id=habitica_user.api_user, bank_id=bank_account.bank_id)
-            await post_event(SendDiscordMessage(f"Failed to withdraw '{amount}' from bank account '{bank_account.name}'. Error: {e}", ephemeral=True))
+            await post_event(SendDiscordMessage(event.discord_channel_id, f"Failed to withdraw '{event.amount}' from bank account '{bank_account.name}'. Error: {e}", ephemeral=True))
             raise e
+ 

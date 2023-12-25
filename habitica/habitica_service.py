@@ -7,6 +7,7 @@ import os, dotenv
 import asyncio
 dotenv.load_dotenv()
 SERVER_URL = os.getenv("SERVER_URL")
+from app.transaction_service import ledger, Operation, RollbackException
 
 class InsufficientGoldException(Exception):
     def __init__(self, *args: object) -> None:
@@ -49,17 +50,35 @@ class HabiticaService:
             raise InsufficientGoldException(f"Habitica user {user.profile.name} has insufficient GP. Current GP is {current_gold}.")
         
         new_gold = current_gold + amount
-        payload = {
-            "stats.gp": new_gold
-        }
+
+        # Record the operation to the ledger
+        operation_object = {"api_user": api_user,"api_token": api_token}
+        operation = ledger.add_operation(operation_object, 'gp',current_gold, new_gold, self.rollback_gold)
+
+        payload = {"stats.gp": new_gold}
         await self.habitica_api.update_user(api_user, api_token, payload)
 
         # Verify gold was added.
         user = await self.get_user(api_user, api_token)
         if new_gold != user.stats.gp:
-            raise GoldTransactionException(f"Something went wrong updating Habitica User {user.profile.name} gold. API_TOKEN is {api_user}.")
-        asyncio.create_task(event_service.post_event(AddGoldEventConfirmed(api_user, api_token, amount)))
-        logger.info(f"Completed gold transaction for amount {amount} with Habitica for api_user {api_user}!")
+            operation.success = False
+            raise GoldTransactionException(f"Something went wrong updating Habitica User: '{user.profile.name}' gold. API_USER: '{api_user}'.")
+        
+        # Mark operation as successful in ledger
+        operation.success = True
+        logger.info(f"Added {amount} gold to habitica account for name: {user.profile.name}, api_user: {api_user}")
+    
+    async def rollback_gold(self, operation: Operation):
+        try:
+            # Reverse add gold. When adding gold, new value is more, old value is less, so take old minus new for rollback
+            self.add_user_gold(
+                operation.obj['api_user'],
+                operation.obj['api_token'], 
+                operation.old_value - operation.new_value
+            )
+        except Exception as e:
+            raise RollbackException(f"Failed to roll back addition of gold. Exception info: {str(e)}")
+
 
     async def handle_create_webhook_event(self, event: habitica_events.WebhookSubscriptionEvent):
         payload = {}

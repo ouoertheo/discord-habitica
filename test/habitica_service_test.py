@@ -11,7 +11,8 @@ class HabiticaServiceTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.habitica_service = HabiticaService()
         self.user = await self.habitica_service.get_user(API_USER, API_TOKEN)
-        
+    
+    @unittest.skip('Caused 504')
     async def test_create_and_delete_all_webhooks(self):
         hs = HabiticaService()
         evt = habitica_events.CreateAllWebhookSubscription(API_USER, API_TOKEN)
