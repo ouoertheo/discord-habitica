@@ -12,19 +12,18 @@ SERVER_PORT = os.getenv("SERVER_PORT") or 8952
 STORE_DIR = os.getenv("STORE_DIR") or "store"
 HABITICA_API_CIRCUIT_BREAKER_COUNT = 30 # How many calls can be made in a 5 second period.
 
+
+TEST_HABITICA_API_USER = os.getenv("TEST_HABITICA_USER_ID")
+TEST_HABITICA_API_TOKEN = os.getenv("TEST_HABITICA_API_TOKEN")
 # Required configs in .env
 if ENVIRONMENT == "PROD":
     logger.info("Using prod configs")
     DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-    HABITICA_API_USER = os.getenv("PROXY_HABITICA_USER_ID")
-    HABITICA_API_TOKEN = os.getenv("PROXY_HABITICA_API_TOKEN")
     EXTERNAL_SERVER_URL = os.getenv("EXTERNAL_SERVER_URL")
     EXTERNAL_SERVER_PORT = os.getenv("EXTERNAL_SERVER_PORT")
 elif ENVIRONMENT == "DEV":
     logger.info("Using dev configs")
     DISCORD_TOKEN = os.getenv("TEST_DISCORD_TOKEN")
-    HABITICA_API_USER = os.getenv("TEST_PROXY_HABITICA_USER_ID")
-    HABITICA_API_TOKEN = os.getenv("TEST_PROXY_HABITICA_API_TOKEN")
     EXTERNAL_SERVER_URL = os.getenv("DEV_EXTERNAL_SERVER_URL")
     EXTERNAL_SERVER_PORT = os.getenv("DEV_EXTERNAL_SERVER_PORT")
 else:
