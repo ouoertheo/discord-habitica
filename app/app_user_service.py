@@ -40,16 +40,17 @@ class AppUserService:
             app_user = AppUser.load(app_user_raw)
             self.app_users.append(app_user)
                 
-    def create_app_user(self, app_user_id) -> AppUser:
-        if self.get_app_users(app_user_id):
-            raise AppUserExistsException(f"App user with id {app_user_id} exists already")
-        app_user = AppUser(app_user_id)
+    def create_app_user(self, app_user_id, app_user_name) -> AppUser:
+        app_user = self.get_app_user(app_user_id)
+        if app_user:
+            raise AppUserExistsException(f"App user with id: {app_user.id}, name: {app_user.name} exists already")
+        app_user = AppUser(app_user_id, app_user_name)
         self.app_users.append(app_user)
         self.driver.create(self.store, app_user.dump())
-        logger.info(f"Created new AppUser with id: {app_user.id}")
+        logger.info(f"Created new AppUser with id: {app_user.id} name: {app_user.name}")
         return app_user
 
-    def get_app_users(self, app_user_id:str="", api_user:str="") -> list[AppUser]:
+    def get_app_users(self, app_user_id:str="") -> list[AppUser]:
         """
         Get an AppUser object by discord_id or api_user.
         Raises AppUserNotFoundException if not found.
@@ -60,8 +61,8 @@ class AppUserService:
         return matches
 
     @ensure_one
-    def get_app_user(self, app_user_id:str="", api_user:str="") -> AppUser:
-        app_user = self.get_app_users(app_user_id, api_user)
+    def get_app_user(self, app_user_id:str="") -> AppUser:
+        app_user = self.get_app_users(app_user_id)
         return app_user
 
     def delete_app_user(self, app_user_id:str):
@@ -73,7 +74,7 @@ class AppUserService:
 
     
     # Implement HabiticaUserLink
-    def add_habitica_user_link(self, app_user_id, api_user, api_token, habitica_user_name, habitica_group_id="") -> UserMap:
+    def add_habitica_user_link(self, app_user_id, api_user, api_token, habitica_user_name, habitica_group_id="") -> HabiticaUserLink:
         """
         Adds a new Habitica User Link to the AppUser.
         Raises: HabiticaAccountExists
@@ -90,12 +91,13 @@ class AppUserService:
         logger.debug(f"Added habitica user {api_user} to App User {app_user_id}")
         return habitica_user
 
-    def get_habitica_user_links(self, app_user_id="", habitica_user_id="") -> list[HabiticaUserLink]:
+    def get_habitica_user_links(self, app_user_id="", habitica_user_id="", habitica_user_name="") -> list[HabiticaUserLink]:
         """
         Searches for HabiticaUserLink objects and returns them. Will return all if no criteria specified.
         Will get all links and search them if app_user_id is not specified.
         """
         # Collect all the habitica users if no app_user_id specified.
+        app_user_id = str(app_user_id)
         app_user_links = []
         app_users = self.get_app_users(app_user_id)
         for app_user in app_users:
@@ -104,13 +106,14 @@ class AppUserService:
         habitica_user_links = match_all_in_list(
             app_user_links,
             app_user_id=app_user_id,
-            api_user=habitica_user_id
+            api_user=habitica_user_id,
+            name=habitica_user_name
         )
         return habitica_user_links
     
     @ensure_one
-    def get_habitica_user_link(self, app_user_id="", habitica_user_id="") -> HabiticaUserLink:
-        return self.get_habitica_user_links(app_user_id, habitica_user_id)
+    def get_habitica_user_link(self, app_user_id="", habitica_user_id="", habitica_user_name="") -> HabiticaUserLink:
+        return self.get_habitica_user_links(app_user_id, habitica_user_id, habitica_user_name)
 
     # ---------------- NOT IMPLEMENTED PROPERLY YET --------------------------
     def get_user_maps(self, app_user_id="", discord_channel: str = "", api_user: str = "") -> list[UserMap]:

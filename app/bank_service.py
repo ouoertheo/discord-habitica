@@ -1,7 +1,6 @@
 from datetime import date, datetime, timezone
 from typing import Any, Coroutine
 from app.model.bank import Bank, BankLoanAccount, BankAccount
-from app.transactor_service_old import Transactable
 from persistence.driver_base_new import PersistenceDriverBase
 from loguru import logger
 from uuid import uuid4
@@ -42,7 +41,7 @@ class BankInsufficientFundsException(Exception):
         super().__init__(*args)
         logger.error(args[0])
 
-class BankService(Transactable):
+class BankService:
     def __init__(self, persistence_driver: PersistenceDriverBase) -> None:
         self.driver = persistence_driver
         self.bank_store = self.driver.stores.BANK
@@ -69,20 +68,21 @@ class BankService(Transactable):
     ## Manage Banks ##
     ##################
 
-    def create_bank(self, bank_name, owner_id):
+    def create_bank(self, bank_name, app_user_id):
         """
         Create a new bank given the owner ID (typically a habitica api_user).
 
         Raises BankExistsException if bank name already exists.
         """
+        app_user_id = str(app_user_id)
         if self.get_bank(bank_name=bank_name):
             raise BankExistsException(f"Bank with name {bank_name} already exists. Use a different name.")
         
-        bank = Bank(str(uuid4()), bank_name, owner_id)
+        bank = Bank(str(uuid4()), bank_name, app_user_id)
         self.banks.append(bank)
 
         self.driver.create(self.bank_store, bank.dump())
-        logger.info(f"User {owner_id} created a new bank with name {bank_name}")
+        logger.info(f"User {app_user_id} created a new bank with name {bank_name}")
         return bank
 
     def delete_bank(self, bank_name):
