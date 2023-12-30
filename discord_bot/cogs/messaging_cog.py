@@ -6,24 +6,44 @@ from loguru import logger
 
 from habitica.habitica_service import HabiticaUser
 import app.events.event_service as event_service
-from app.events import discord_events, bank_events, app_events
-import cogs.command_sync as command_sync
-from cogs.base_cog import BaseCog
+from app.events import discord_events
 
 
-class MessagingCog(BaseCog):
+class MessagingCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
-        super().__init__(bot)
-        self.subscribe_events()
-        
-    def subscribe_events(self):
+        self.bot = bot
         event_service.subscribe(discord_events.SendDiscordMessage.type, self.handle_send_message_event)
+        logger.info("Discord Messaging Cog initialized.")
     
-    # Handle SendDiscordMessage events and send them to a channel
     async def handle_send_message_event(self, event: discord_events.SendDiscordMessage):
-        channel = self.bot.get_channel(event.discord_channel)
-        response = await channel.send(event.message)
-        return response
+        """Handle SendDiscordMessage events and send them to specified location"""
+        channel = self.bot.get_channel(event.discord_channel) if hasattr(event,"discord_channel") else None
+        user = self.bot.get_user(event.discord_user_id) if hasattr(event,"discord_user_id") else None
+        interaction: discord.Interaction = getattr(event,"interaction", None)
+
+        # Only send message to one of the specified methods
+        if channel:
+            await channel.send(event.message)
+            logger.info(f"Sent message to channel {channel.name}")
+        elif user:
+            if user.dm_channel:
+                await user.dm_channel.send(event.message)
+                logger.info(f"Sent DM message to user {user.name}")
+            else:
+                logger.info(f"Creating DM channel with {user.name}")
+                dm_channel = await user.create_dm()
+                await dm_channel.send(event.message)
+                logger.info(f"Sent DM message to {user.name}")
+        elif interaction:
+            try:
+                await interaction.response.send_message(event.message, ephemeral=event.ephemeral)
+                logger.info(f"Sent interaction message to channel {interaction.channel.name}")
+            except discord.errors.HTTPException as e:
+                dm_channel = interaction.user.dm_channel
+                if not dm_channel:
+                    dm_channel = await interaction.user.create_dm()
+                await dm_channel.send(event.message)
+                logger.warning(f"Problem with responding to interaction. DM'd user {interaction.channel.name}. Exception: {str(e)}")
     
     # Listen for any messages in channels that the bot is present in.
     @commands.Cog.listener()
@@ -33,13 +53,6 @@ class MessagingCog(BaseCog):
         """
         if self.bot.user.id != message.author.id:
             await event_service.post_event(discord_events.ReceiveDiscordMessage(message))
-
-    @app_command()
-    async def create_bank(self, interaction: discord.Interaction, bank_name: str):
-        event_service.post_event(bank_events.CreateBank(
-            discord_channel=interaction.channel_id,
-            bank_name=bank_name
-        ))
 
     async def handle_group_chat_webhook(self, wh):
         '''
@@ -64,7 +77,3 @@ class MessagingCog(BaseCog):
         # else:
         #     asyncio.create_task(event.post_event(event.SendDiscordMessage(discord_channel_id, message)))
         pass
-
-
-def setup(bot):
-    bot.load_extension(bot)
