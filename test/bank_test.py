@@ -193,10 +193,11 @@ class BankHandlerTest(unittest.IsolatedAsyncioTestCase):
         self.API_TOKEN = "API_TOKEN"
         self.HABITICA_USER = "Knight1_Habitica"
         self.APP_USER_ID = "Knight1_DISCORD"
+        self.APP_USER_NAME = "Knight1_DISCORD"
         self.DISCORD_CHANNEL_ID = "Forest"
         self.BANK_ACCOUNT_NAME = "Knights of Nih! Account"
         self.BANK_NAME = "Knights of Nih! Bank"
-        self.app_user = self.app_user_service.create_app_user(self.APP_USER_ID)
+        self.app_user = self.app_user_service.create_app_user(self.APP_USER_ID, self.APP_USER_NAME)
         self.habitica_user_link = self.app_user_service.add_habitica_user_link(
             self.APP_USER_ID,
             self.API_USER,

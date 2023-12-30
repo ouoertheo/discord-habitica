@@ -25,12 +25,14 @@ class UserMap:
 @dataclass
 class AppUser:
     id: str
+    name: str
     user_maps: list[UserMap] = field(default_factory=list)
     habitica_user_links: list[HabiticaUserLink] = field(default_factory=list)
 
     def dump(self):
         model = {
             "id": self.id,
+            "name": self.name,
             "user_maps": [asdict(user_map) for user_map in self.user_maps],
             "habitica_user_links": [asdict(habitica_user) for habitica_user in self.habitica_user_links]
         }
