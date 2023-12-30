@@ -1,4 +1,3 @@
-import asyncio
 from typing import Any, Callable
 from typing_extensions import SupportsIndex
 from loguru import logger
@@ -6,8 +5,9 @@ from uuid import uuid4
 from dataclasses import dataclass, field
 from app.utils import match_all_in_list, ensure_one
 from datetime import datetime, timezone
-import contextvars
-from functools import wraps
+from contextvars import ContextVar
+
+current_transaction_id = ContextVar('transaction',default=None)
 
 class RollbackException(Exception):
     def __init__(self, *args: object) -> None:
@@ -27,6 +27,7 @@ class Operation:
     created: datetime
     rollback_fcn: Callable = None
     success: bool = False
+    exception: Exception = None
 
 @dataclass
 class Transaction:
@@ -37,8 +38,6 @@ class OperationLedger:
     def __init__(self) -> Any:
         self.operations: list[Operation] = []
         self.transactions: dict[str, Transaction] = {}
-        self.current_transaction: Transaction = None
-        self.transaction_lock = asyncio.Lock()
     
     async def __aenter__(self):
         return await self.start_transaction()
@@ -47,36 +46,32 @@ class OperationLedger:
         self.end_transaction()
     
     async def start_transaction(self):
-        await self.transaction_lock.acquire()
-        try:
-            transaction = Transaction(id = str(uuid4()))
-            self.transactions[transaction.id] = transaction
-            self.current_transaction = transaction
-            return transaction
-        except Exception as e:
-            self.transaction_lock.release()
-            self.current_transaction = None
-            t = transaction.id if transaction else None
-            raise TransactionException(f"Error starting transaction {t} {e}")
+        transaction = Transaction(str(uuid4()))
+        self.transactions[transaction.id] = transaction
+
+        # Set the contextvar for operations to use
+        current_transaction_id.set(transaction.id)
+        return transaction
 
     def end_transaction(self):
         try:
-            if not all(operation.success for operation in self.current_transaction.operations):
-                for operation in self.current_transaction.operations:
+            # Transactions must end with all successful operations
+            transaction = self.transactions[current_transaction_id.get()]
+            if not all(operation.success for operation in transaction.operations):
+                for operation in transaction.operations:
+                    # Rollback successful transactions
                     if operation.success:
                         self.rollback(operation)
-                        raise TransactionException(f"Not all operations completed. Failed operations: {[op.id for op in self.current_transaction.operations if not op.success]}")
-        except TransactionException as e:
-            raise TransactionException(f"Error closing transaction {self.current_transaction.id} {e}")
-        finally:
-            self.transaction_lock.release()
-            self.current_transaction = None
+                        raise TransactionException(f"Not all operations completed. Failed operations: {[op.id for op in transaction.operations if not op.success]}")
+        except Exception as e:
+            raise TransactionException(f"Error closing transaction {transaction.id} {e}")
     
     def add_operation(self, obj, attr_name, old_value, new_value, rollback_fcn: Callable):
         operation = Operation(str(uuid4()), obj, attr_name, old_value, new_value, created=datetime.now(tz=timezone.utc), rollback_fcn=rollback_fcn)
         self.operations.append(operation)
-        if self.current_transaction:
-            self.current_transaction.operations.append(operation)
+        transaction_id = current_transaction_id.get()
+        if transaction_id:
+            self.transactions[transaction_id].operations.append(operation)
         return operation
     
     @ensure_one
@@ -127,7 +122,7 @@ class TransactableAttribute(int):
                 operation.success = False
             
             # Raise only if not handled in a transaction 
-            if ledger.current_transaction:
+            if current_transaction_id.get():
                 logger.exception(e)
             else:
                 raise e
@@ -146,7 +141,7 @@ class TransactableInt(int):
             operation.success = False
 
         # Raise only if not handled in a transaction
-        if ledger.current_transaction:
+        if current_transaction_id.get():
             print("Logging exception:", e)
         else:
             raise e
@@ -176,7 +171,7 @@ class TransactableList(list):
             operation.success = False
         
         # Raise only if not handled in a transaction 
-        if ledger.current_transaction:
+        if current_transaction_id.get():
             logger.exception(e)
         else:
             raise e
@@ -246,7 +241,7 @@ class TransactableDict(dict):
             operation.success = False
 
         # Raise only if not handled in a transaction
-        if ledger.current_transaction:
+        if current_transaction_id.get():
             print("Logging exception:", e)
         else:
             raise e
