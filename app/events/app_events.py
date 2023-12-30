@@ -1,9 +1,9 @@
 from dataclasses import dataclass
+from discord import Interaction
 
 @dataclass
-class RegisterHabiticaAccount:
-    discord_user: str
+class SendAccountStatus:
+    discord_user_id: str
     discord_channel: str
-    api_user: str
-    api_token: str
-    type = "register_user"
+    interaction: Interaction 
+    type = "send_account_status"
