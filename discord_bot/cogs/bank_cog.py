@@ -6,18 +6,20 @@ from discord.interactions import Interaction
 from loguru import logger
 import asyncio
 
-from app.bank_service import BankService, BankExistsException, BankNotFoundException, Bank, BankInsufficientFundsException
+from app.bank_service import BankService, BankAccount, BankLoanAccount, Bank
 from app.app_user_service import AppUserService, HabiticaUserLink
 from habitica.habitica_service import HabiticaService, InsufficientGoldException, GoldTransactionException
-from habitica.events.habitica_events import AddGoldEventConfirmed, AddGoldEvent
+
+from app.events.event_service import post_event
+from app.events.bank_events import WithdrawGold, DepositGold
+
 from typing import Callable
 
 
 
 class UISelectBank(discord.ui.Select):
-    def __init__(self, bank_service: BankService):
-        self.banks = bank_service.get_banks()
-        options = [discord.SelectOption(label=bank.name) for bank in self.banks]
+    def __init__(self, banks):
+        options = [discord.SelectOption(label=bank.name) for bank in banks]
         super().__init__(placeholder="Select Bank", options=options)
     
     async def callback(self, interaction: Interaction) -> Any:
@@ -25,32 +27,24 @@ class UISelectBank(discord.ui.Select):
 
 
 class UISelectHabiticaUser(discord.ui.Select):
-    def __init__(self, app_user_service: AppUserService, app_user_id):
-        self.habitica_user_links = app_user_service.get_habitica_user_links(app_user_id=app_user_id)
-        options = [discord.SelectOption(label=link.name) for link in self.habitica_user_links]
+    def __init__(self, habitica_user_links):
+        self.habitica_user_links = habitica_user_links
+        options = [discord.SelectOption(label=link.name) for link in habitica_user_links]
         super().__init__(placeholder="Select Habitica Account", options=options)
     
     async def callback(self, interaction: Interaction) -> Any:
-        # Somewhat woried about users trying to register users with the same name in Habitica. But I don't think that's a thing... 
-        self.habitica_user = [u for u in self.habitica_user_links if u.name == self.values[0]][0] # Assume first match
         await interaction.response.defer()
     
 
 class UISelectBankAccount(discord.ui.Select):
-    def __init__(self, bank_service: BankService, app_user_id):
-        self.bank_service = bank_service
-        bank_accounts = self.bank_service.get_accounts(app_user_id=app_user_id)
+    def __init__(self, bank_accounts: list[BankAccount|BankLoanAccount]):
+        self.bank_accounts = bank_accounts
 
         # Label should contain the bank name, account name, and balance
-        options = [discord.SelectOption(label=f"{self.bank_service.get_bank(bank_id=bank_account.bank_id).name}: {bank_account.name}: {bank_account.balance} GP") for bank_account in bank_accounts]
+        options = [discord.SelectOption(label=bank_account) for bank_account in bank_accounts]
         super().__init__(placeholder="Select Bank: Account", options=options)
     
     async def callback(self, interaction: Interaction) -> Any:
-        # Parse out selected option and get the bank account using the bank name and account name, then save it
-        bank_name = self.values[0].split(":")[0].strip()
-        bank_account_name = self.values[0].split(":")[1].strip()
-        bank = self.bank_service.get_bank(bank_name=bank_name)
-        self.bank_account = self.bank_service.get_account(bank_id=bank.id, bank_account_name=bank_account_name)
         await interaction.response.defer()
 
 
@@ -78,12 +72,47 @@ class BankCog(commands.Cog):
             app_user_service: AppUserService,
             habitica_service: HabiticaService
         ) -> None:
+        self.bot = bot
         self.app_commands = []
         self.bank_service = bank_service
         self.app_user_service = app_user_service
         self.habitica_service = habitica_service
         logger.info("Habitica Bank Cog initialized.")
     
+    #################################
+    ### Verification of Existence ###
+    #################################
+        
+    async def get_banks(self, ctx: commands.Context[commands.Bot]):
+        banks =  self.bank_service.get_banks()
+        if not banks:
+            message = "⚠️ There are no existing banks. A bank must exist before you can do that."
+            await ctx.send(message, ephemeral=True)
+            raise Exception(message)
+        return banks
+
+    async def get_habitica_user_links(self, ctx: commands.Context[commands.Bot], discord_user_id):
+        # Check Habitica account is registered
+        habitica_user_links = self.app_user_service.get_habitica_user_links(app_user_id=discord_user_id)
+        if not habitica_user_links:
+            message = "⚠️ You must register a Habitica account before you can do that."
+            await ctx.send(message, ephemeral=True)
+            raise Exception(message)
+        return habitica_user_links
+
+    async def get_bank_accounts(self, ctx: commands.Context[commands.Bot], discord_user_id):
+        self.get_habitica_user_links(ctx, discord_user_id)
+        bank_accounts = self.bank_service.get_accounts(app_user_id=discord_user_id)
+        if not bank_accounts:
+            message = "⚠️ You must open a bank account before you can do that."
+            await ctx.send(message, ephemeral=True)
+            raise Exception(message)
+        return bank_accounts
+
+    ######################
+    ###### Commands ######
+    ######################
+
     @commands.hybrid_group("bank")
     async def bank_commands(self, ctx: commands.Context[commands.Bot]):
         pass
@@ -92,22 +121,25 @@ class BankCog(commands.Cog):
     async def create_bank(self, ctx: commands.Context[commands.Bot], bank_name):
         """Create a new bank"""
         logger.info(f"Create Bank was invoked by user {ctx.interaction.user.name}")
-        app_user_id = str(ctx.interaction.user.id)
-
-        view = UIView()
-        view.add_item(UISelectHabiticaUser(self.app_user_service, app_user_id))
-        view.add_item(UIButtonFinish("Create Bank", self.callback_create_bank, original_interaction=ctx.interaction, bank_name=bank_name))
-        await ctx.send("Please complete form to open a new Bank account.",view=view, ephemeral=True)
+        discord_user_id = str(ctx.interaction.user.id)
+        
+        try:
+            self.bank_service.create_bank(bank_name=bank_name, app_user_id=discord_user_id)
+            await ctx.interaction.response.send_message(f"🏦 Created bank '{bank_name}' with owner '{ctx.interaction.user.name}'.")
+        except Exception as e:
+            await ctx.interaction.response.send_message(f"⛔ Failed to create '{bank_name}' with owner {ctx.interaction.user.name}. Error: {e}")
 
     @bank_commands.command(name="open_bank_account")
     async def open_bank_account(self, ctx: commands.Context[commands.Bot], account_name:str):
         """Open a bank account"""
         logger.info(f"Open Bank Account was invoked by user {ctx.interaction.user.name}")
-        app_user_id = str(ctx.interaction.user.id)
 
+        banks = await self.get_banks(ctx)
+        habitica_user_links = await self.get_habitica_user_links(ctx, ctx.interaction.user.id)
+            
         view = UIView()
-        view.add_item(UISelectBank(self.bank_service))
-        view.add_item(UISelectHabiticaUser(self.app_user_service, app_user_id))
+        view.add_item(UISelectBank(banks))
+        view.add_item(UISelectHabiticaUser(habitica_user_links))
         view.add_item(UIButtonFinish("Open Account", self.callback_open_account, original_interaction=ctx.interaction, account_name=account_name))
         await ctx.send("Please complete form to open a new Bank account.",view=view, ephemeral=True)
 
@@ -115,132 +147,104 @@ class BankCog(commands.Cog):
     async def withdraw_gold(self, ctx: commands.Context[commands.Bot], amount: int):
         """Withdraw gold from bank account"""
         logger.info(f"Withdraw Gold was invoked by user {ctx.interaction.user.name}")
-        app_user_id = str(ctx.interaction.user.id)
+        discord_user_id = str(ctx.interaction.user.id)
+
+        bank_accounts = await self.get_bank_accounts(ctx, discord_user_id)
+
+        # This is how options will be rendered
+        options = [f"{self.bank_service.get_bank(bank_id=bank_account.bank_id).name}: {bank_account.name}: {bank_account.balance} GP" for bank_account in bank_accounts]
 
         view = UIView()
-        view.add_item(UISelectBankAccount(self.bank_service, app_user_id))
+        view.add_item(UISelectBankAccount(options))
         view.add_item(UIButtonFinish("Withdraw Gold", self.callback_withdraw_gold, original_interaction=ctx.interaction, amount=amount))
-        await ctx.send("Please complete form to open a new Bank account.",view=view, ephemeral=True)
+        await ctx.send("Select bank account to withdraw gold from.",view=view, ephemeral=True)
 
     
     @bank_commands.command()
     async def deposit_gold(self, ctx: commands.Context[commands.Bot], amount: int):
         """Withdraw gold from bank account"""
         logger.info(f"Deposit Gold was invoked by user {ctx.interaction.user.name}")
-        app_user_id = str(ctx.interaction.user.id)
+        discord_user_id = str(ctx.interaction.user.id)
+
+        bank_accounts = await self.get_bank_accounts(ctx, discord_user_id)
+
+        # This is how options will be rendered
+        options = [f"{self.bank_service.get_bank(bank_id=bank_account.bank_id).name}: {bank_account.name}: {bank_account.balance} GP" for bank_account in bank_accounts]
 
         view = UIView()
-        view.add_item(UISelectBankAccount(self.bank_service, app_user_id))
+        view.add_item(UISelectBankAccount(options))
         view.add_item(UIButtonFinish("Deposit Gold", self.callback_deposit_gold, original_interaction=ctx.interaction, amount=amount))
-        await ctx.send("Please complete form to open a new Bank account.",view=view, ephemeral=True)
-        
-    async def callback_create_bank(self, interaction: discord.Interaction, finish_button: UIButtonFinish, original_interaction: discord.Interaction, bank_name: str):
-        view: discord.ui.View = finish_button.view
-        app_user_id = str(interaction.user.id)
+        await ctx.send("Select a bank account to deposit gold into.",view=view, ephemeral=True)
 
-        # Get selection values
-        for child in view.children:
-            if isinstance(child, UISelectHabiticaUser):
-                habitica_user_name = child.values[0]
-        
-        # Defer interaction if no selection data
-        if not (bank_name or habitica_user_name or bank_name):
-            await interaction.response.defer()
-        else:
-            # Remove message with view
-            await original_interaction.delete_original_response()
-            try:
-                self.bank_service.create_bank(bank_name=bank_name, owner_id=app_user_id)
-                await interaction.response.send_message(f"Created bank '{bank_name}' with owner '{habitica_user_name}'.")
-            except Exception as e:
-                await interaction.response.send_message(f"Failed to create '{bank_name}' with owner {habitica_user_name}. Error: {e}")
+    #####################
+    ### Callback Code ###
+    #####################
     
     async def callback_open_account(self, interaction: discord.Interaction, finish_button: UIButtonFinish, original_interaction: discord.Interaction, account_name: str):
         view: discord.ui.View = finish_button.view
-        bank_name = ""
-        habitica_user_name = ""
+        discord_user_id = str(interaction.user.id)
 
         # Get selection values
-        for child in view.children:
-            if isinstance(child, UISelectBank):
-                bank_name = child.values[0]
-                bank_id = self.bank_service.get_bank(bank_name=bank_name).id
-            if isinstance(child, UISelectHabiticaUser):
-                habitica_user: HabiticaUserLink = child.values[0]
+        for component in view.children:
+            if isinstance(component, UISelectBank):
+                selection = component.values[0]
+                bank = self.bank_service.get_bank(bank_name=selection)
+            if isinstance(component, UISelectHabiticaUser):
+                selection = component.values[0]
+                habitica_user_link = self.app_user_service.get_habitica_user_link(app_user_id=str(interaction.user.id),habitica_user_name=selection)
         
         # Defer interaction if no selection data
-        if not (bank_name or habitica_user_name or account_name):
+        if not (bank or habitica_user_link or account_name):
             await interaction.response.defer()
         else:
             # Remove message with view
             await original_interaction.delete_original_response()
             try:
-                self.bank_service.open_account(account_name=account_name, bank_id=bank_id, habitica_user_id=habitica_user.api_user)
-                await interaction.response.send_message(f"Created bank account {account_name} in bank {bank_name}.", ephemeral=True)
+                self.bank_service.open_account(account_name=account_name, bank_id=bank.id, app_user_id=discord_user_id, habitica_user_id=habitica_user_link.api_user)
+                await interaction.response.send_message(f"✅ Created bank account {account_name} in bank {bank.name}.", ephemeral=True)
             except Exception as e:
-                await interaction.response.send_message(f"Failed to open bank account '{account_name}' in bank '{bank_name}'. Error: {e}")
+                await interaction.response.send_message(f"⛔ Failed to open bank account '{account_name}' in bank '{bank.name}'. Error: {e}",ephemeral=True)
                 raise e
 
     async def callback_withdraw_gold(self, interaction: discord.Interaction, finish_button: UIButtonFinish, original_interaction: discord.Interaction, amount: int):
         view: discord.ui.View = finish_button.view
-        gold_add_successful = False
-        gold_withdraw_successful = False
 
         # Get selection values
-        for child in view.children:
-            if isinstance(child, UISelectBankAccount):
-                bank_account = child.bank_account
-                habitica_user = self.app_user_service.get_habitica_user_link(habitica_user_id=bank_account.habitica_user_id)
+        for component in view.children:
+            if isinstance(component, UISelectBankAccount):
+                # Parse out selected option and get the bank account using the bank name and account name
+                bank_name = component.values[0].split(":")[0].strip()
+                bank = self.bank_service.get_bank(bank_name=bank_name)
+                bank_account_name = component.values[0].split(":")[1].strip()
+
+                bank_account = self.bank_service.get_account(bank_id=bank.id, bank_account_name=bank_account_name)
 
         # Defer interaction if no selection data
-        if not (bank_account or amount):
-            await interaction.response.defer()
+        if bank_account or amount:
+            event = WithdrawGold(amount=amount, bank_id=bank_account.bank_id, bank_account_id=bank_account.id, description="", interaction=interaction)
+            asyncio.create_task(post_event(event))
         else:
             # Remove message with view
             await original_interaction.delete_original_response()
-    
-    async def withdraw_gold(self):
-        try:
-            # Must withdraw from bank first to see if exception like insufficient funds is thrown
-            self.bank_service.withdraw(amount=amount, bank_account_id=bank_account.id, habitica_user_id=habitica_user.api_user, bank_id=bank_account.bank_id)
-            gold_withdraw_successful = True
-            await self.habitica_service.add_user_gold(api_user=habitica_user.api_user, api_token=habitica_user.api_token, amount=amount)
-            gold_add_successful = True # Verify we didn't raise exception on add_user_gold
-            await interaction.response.send_message(f"Withdrew {amount} from account {bank_account.name}. New balance is {bank_account.balance}", ephemeral=True)
-        except Exception as e:
-            # If the update gold to habitica account failed and money was withdrawn, deposit the money back into bank account
-            if not gold_add_successful and gold_withdraw_successful:
-                self.bank_service.deposit(amount=amount, bank_account_id=bank_account.id, habitica_user_id=habitica_user.api_user, bank_id=bank_account.bank_id)
-            await interaction.response.send_message(f"Failed to withdraw '{amount}' from bank account '{bank_account.name}'. Error: {e}", ephemeral=True)
-            raise e
+            
 
     async def callback_deposit_gold(self, interaction: discord.Interaction, finish_button: UIButtonFinish, original_interaction: discord.Interaction, amount: int):
         view: discord.ui.View = finish_button.view
-        gold_remove_successful = False
-        gold_deposit_successful = False
-
+        amount = -amount
         # Get selection values
-        for child in view.children:
-            if isinstance(child, UISelectBankAccount):
-                bank_account = child.bank_account
-                habitica_user = self.app_user_service.get_habitica_user_link(habitica_user_id=bank_account.habitica_user_id)
+        for component in view.children:
+            if isinstance(component, UISelectBankAccount):
+                # Parse out selected option and get the bank account using the bank name and account name
+                bank_name = component.values[0].split(":")[0].strip()
+                bank = self.bank_service.get_bank(bank_name=bank_name)
+                bank_account_name = component.values[0].split(":")[1].strip()
+
+                bank_account = self.bank_service.get_account(bank_id=bank.id, bank_account_name=bank_account_name)
 
         # Defer interaction if no selection data
-        if not (bank_account or amount):
-            await interaction.response.defer()
+        if bank_account and amount:
+            event = WithdrawGold(amount=amount, bank_id=bank_account.bank_id, bank_account_id=bank_account.id, description="", interaction=interaction)
+            asyncio.create_task(post_event(event))
         else:
             # Remove message with view
             await original_interaction.delete_original_response()
-            try:
-                # Must remove gold from user first to see if exception like insufficient gold is thrown
-                await self.habitica_service.add_user_gold(api_user=habitica_user.api_user, api_token=habitica_user.api_token, amount=-amount)
-                gold_remove_successful = True
-                self.bank_service.deposit(amount=amount, habitica_user_id=habitica_user.api_user, bank_account_id=bank_account.id, bank_id=bank_account.bank_id)
-                gold_deposit_successful = True # Verify we didn't raise exception on add_user_gold
-                await interaction.response.send_message(f"Deposited {amount} into account {bank_account.name}. New balance is {bank_account.balance}", ephemeral=True)
-            except Exception as e:
-                # If the deposit to bank fails and gold was removed from user, give the money back to the user
-                if not gold_deposit_successful and gold_remove_successful:
-                    await self.habitica_service.add_user_gold(api_user=habitica_user.api_user, api_token=habitica_user.api_token, amount=amount)
-                await interaction.response.send_message(f"Failed to deposit '{amount}' into bank account '{bank_account.name}'. Error: {e}", ephemeral=True)
-                raise e
