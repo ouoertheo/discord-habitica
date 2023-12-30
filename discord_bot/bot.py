@@ -9,7 +9,7 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
-from discord_bot.cogs import app_cog, bank_cog
+from discord_bot.cogs import app_cog, bank_cog, messaging_cog
 from app.app_service import AppService
 
 
@@ -29,6 +29,7 @@ class DiscordHabiticaBot(commands.Bot):
     async def _load_extensions(self) -> None:
         await self.add_cog(app_cog.AppUserCog(self, self.app_service))
         await self.add_cog(bank_cog.BankCog(self, self.app_service.bank_service, self.app_service.app_user_service, self.app_service.habitica_service))
+        await self.add_cog(messaging_cog.MessagingCog(self))
 
     async def on_error(self, event_method: str, *args: typing.Any, **kwargs: typing.Any) -> None:
         self.logger.error(f"An error occurred in {event_method}.\n{traceback.format_exc()}")
