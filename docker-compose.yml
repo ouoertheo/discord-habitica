@@ -1,6 +1,11 @@
 services:
   app:
-    image: ouoertheo/discord-habitica
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ouoertheo/discord-habitica:latest
+    env_file:
+      - .env
     ports:
       - ${SERVER_PORT}:${SERVER_PORT}
     volumes:
