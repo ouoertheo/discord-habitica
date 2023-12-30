@@ -70,7 +70,7 @@ class HabiticaService:
     
     async def rollback_gold(self, operation: Operation):
         try:
-            # Reverse add gold. When adding gold, new value is more, old value is less, so take old minus new for rollback
+            # Reverse add gold
             self.add_user_gold(
                 operation.obj['api_user'],
                 operation.obj['api_token'], 

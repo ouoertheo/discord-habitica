@@ -81,7 +81,7 @@ class Stats:
     buffs: Buffs
     training: Training
     hp: float
-    mp: int
+    mp: float
     exp: int
     gp: float
     lvl: int

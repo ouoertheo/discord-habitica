@@ -18,6 +18,7 @@ def match_all_in_list(collection:list, **kwargs) -> list:
     return match
 
 def ensure_one(func):
+    """Decoration that returns the only member of a list or throws RuntimeError. If list is empty, returns None"""
     def wrapper(*args, **kwargs):
         return_list = func(*args, **kwargs)
         if return_list and len(return_list) > 1:
