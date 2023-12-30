@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+
+from discord import Interaction
 #################
 ## Bank Events ##
 #################
@@ -47,16 +49,8 @@ class DepositGold:
     bank_id: str
     bank_account_id: str
     description: str
-    discord_channel_id: str
+    interaction: Interaction
     type = "deposit_gold"
-
-@dataclass
-class RemoveGoldConfirmed:
-    amount: float
-    bank_id: str
-    bank_account_id: str
-    transaction_id: str = ""
-    type = "deposit_gold_confirmed"
 
 @dataclass
 class WithdrawGold:
@@ -64,16 +58,8 @@ class WithdrawGold:
     bank_id: str
     bank_account_id: str
     description: str
-    discord_channel_id: str
+    interaction: Interaction
     type = "withdraw_gold"
-
-@dataclass
-class WithdrawGoldConfirmed:
-    amount: float
-    bank_id: str
-    bank_account_id: str
-    transaction_id: str = ""
-    type = "withdraw_gold_confirmed"
 
 @dataclass
 class ChargeBankPayment:
