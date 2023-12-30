@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "discord-habitica"
+version = "0.1.0"
+description = "A Habitica expansion with a Discord interface"
+authors = ["ouoertheo <jamin@tomeofjamin.net>"]
+readme = "README.md"
+packages = [{include = "discord_habitica"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+requests = "^2.31.0"
+loguru = "^0.7.2"
+fastapi = "^0.108.0"
+uvicorn = "^0.25.0"
+requests-ratelimiter = "^0.4.2"
+discord = "^2.3.2"
+python-dotenv = "^1.0.0"
+dacite = "^1.8.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
