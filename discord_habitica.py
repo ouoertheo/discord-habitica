@@ -26,6 +26,8 @@ from app.app_user_service import AppUserService
 
 # Handler Imports
 from habitica.handlers.habitica_service_handlers import HabiticaServiceHandlers
+from app.handlers.app_service_handlers import AppServiceHandlers
+from app.handlers.bank_handlers import BankEventHandlers
 
 # Set logging levels. Intercept all logs
 logger.remove()
@@ -53,12 +55,6 @@ async def handle_exception(loop, context):
     msg = context.get("exception", context["message"])
     logger.error(f"Caught exception: {msg}")
 
-# Handler dependency injection class.
-@dataclass
-class EventHandlers:
-    habitica_service_handlers: HabiticaServiceHandlers
-
-
 async def main():
     invite_url = "https://discord.com/oauth2/authorize?client_id=1012353261916913704&permissions=17979471359040&scope=bot"
     logger.info(f"Starting Discord Habitica. Invite URL: {invite_url}")
@@ -79,13 +75,16 @@ async def main():
     )
 
     # Event Handlers
-    event_handlers = EventHandlers(
-        habitica_service_handlers=HabiticaServiceHandlers(habitica_service)
-    )
+    event_handlers = [
+        HabiticaServiceHandlers(habitica_service),
+        BankEventHandlers(bank_service, app_user_service, habitica_service),
+        AppServiceHandlers(app_service)
+    ]
+    for handler in event_handlers:
+        logger.info(f"Handler Registered: {handler.__class__}")
 
     # Create bot
     bot = DiscordHabiticaBot(prefix="!", ext_dir="discord_bot/cogs", app_service=app_service)
-
 
     # Initialize asyncio loop
     loop = asyncio.new_event_loop()
